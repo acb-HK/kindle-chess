@@ -1,10 +1,10 @@
 /* Board cell size in REAL pixels (Kindle Paperwhite browser has no vw units).
    Computed from screen width so the board fills it; clamped for desktop. */
 var CELL=60;
-/* px kept free BELOW the board for the buttons. Larger = smaller board. */
-var RESERVE_BELOW=78;
-/* Cell size from BOTH width and the height left under the controls. Computed
-   every render (deterministic) so a menu re-render can't resize the board. */
+/* Rows' worth of height kept free BELOW the board (for buttons + key), scaling
+   with cell size. Bigger = smaller board. ~3 leaves room for the key on screen. */
+var RESERVE_ROWS=3;
+/* Cell size from BOTH width and the height left under the controls. */
 function cellSize(){
   var w = window.innerWidth || document.documentElement.clientWidth || 320;
   var h = window.innerHeight || document.documentElement.clientHeight || 480;
@@ -12,9 +12,10 @@ function cellSize(){
   var top = 130;
   var bw = (typeof document!=='undefined') ? document.getElementById('boardwrap') : null;
   if(bw){ var t=0, el=bw; while(el){ t+=el.offsetTop; el=el.offsetParent; } if(t>0) top=t; }
-  var byH = Math.floor((h-top-RESERVE_BELOW)/8);
+  /* divide remaining height into 8 board rows + RESERVE_ROWS for buttons/key */
+  var byH = Math.floor((h-top-6)/(8+RESERVE_ROWS));
   var s = Math.min(byW, byH);
-  if(s<26) s=26;
+  if(s<24) s=24;
   if(s>96) s=96;
   return s;
 }
