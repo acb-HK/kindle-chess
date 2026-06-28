@@ -41,7 +41,7 @@
 <script src="svg-pieces.js"></script>
 <script src="puzzles-data.js"></script>
 <script>
-var WIN=['Solved! 🎉','Nailed it! 🏆','Brilliant! ⭐','Checkmate champ! 👑','Yes! 💪','Too easy? 😎'];
+var WIN=['Solved!','Nailed it!','Brilliant!','Checkmate champ!','Yes!','Too easy?'];
 var list=[], idx=0;
 var PZ={board:null,turn:W,castle:null,ep:null,sel:null,solved:false,hintSq:null,puz:null,solver:W};
 
@@ -136,7 +136,7 @@ function tryMove(m){
     setStatus(p.desc||'');
   } else {
     PZ.sel=null; render();
-    banner('no','✗ Not quite — try again');
+    banner('no','Not quite - try again');
     setStatus((PZ.solver===W?'White':'Black')+' to move — '+p.goal);
   }
 }

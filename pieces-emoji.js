@@ -36,10 +36,11 @@ function pieceSym(p){
 }
 
 /* kid-friendly quips, shown at random (~1 in 3) when emoji style is on */
-var QUIPS=['Good move!','Ha! I see your trick 😏','I’ll get you next time!','Ooh, brave! 😮',
-  'Nice one!','Hmm, tricky…','My turn to shine! ✨','Uh oh…','You’re good at this!',
-  'Gotcha! 😜','Take that!','Clever clogs!','Beep boop… thinking 🤖','Is that your best? 😄',
-  'Well played!','Watch this! 🪄','Sneaky… I like it'];
-var QUIPS_YOUWIN=['Aw, you got me! 🏆','GG — you win!','Champion! 👑','You beat me! 🎉'];
-var QUIPS_CPUWIN=['Checkmate! 😎','Got you — rematch?','Hehe, I win this one! 🤖','So close! 😜'];
+/* plain text (no emoji) so quips render on Kindle e-ink too */
+var QUIPS=['Good move!','Ha! I see your trick','I will get you next time!','Ooh, brave!',
+  'Nice one!','Hmm, tricky...','My turn to shine!','Uh oh...','You are good at this!',
+  'Gotcha!','Take that!','Clever clogs!','Beep boop... thinking','Is that your best?',
+  'Well played!','Watch this!','Sneaky... I like it','Not bad!','You will not beat me!'];
+var QUIPS_YOUWIN=['Aw, you got me!','GG - you win!','You are the champion!','You beat me!'];
+var QUIPS_CPUWIN=['Checkmate! I win!','Got you - rematch?','Hehe, I win this one!','So close!'];
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }

@@ -136,7 +136,7 @@ function computerMove(){
   render(); renderMoves();
   if(checkEnd()) return;
   announceTurn();
-  if(G.style==='emoji' && typeof QUIPS!=='undefined' && Math.random()<0.32) showQuip(pick(QUIPS));
+  if(typeof QUIPS!=='undefined' && Math.random()<0.32) showQuip(pick(QUIPS));
 }
 function announceTurn(){
   var chk = inCheck(G.board,G.turn) ? 'Check! ' : '';
@@ -151,9 +151,9 @@ function checkEnd(){
     var winner = G.turn===W ? 'Black' : 'White';
     if(G.mode==='cpu'){
       var youWin = (other(G.turn)===G.humanSide);
-      setStatus('Checkmate — ' + (youWin?'you win! 🏆':'computer wins.'));
-      if(G.style==='emoji' && typeof QUIPS_YOUWIN!=='undefined') showQuip(pick(youWin?QUIPS_YOUWIN:QUIPS_CPUWIN));
-    } else setStatus('Checkmate — ' + winner + ' wins! 🏆');
+      setStatus('Checkmate — ' + (youWin?'you win!':'computer wins.'));
+      if(typeof QUIPS_YOUWIN!=='undefined') showQuip(pick(youWin?QUIPS_YOUWIN:QUIPS_CPUWIN));
+    } else setStatus('Checkmate — ' + winner + ' wins!');
   } else setStatus('Stalemate — draw.');
   return true;
 }
