@@ -49,16 +49,29 @@ function humanToMove(){
   return G.turn===G.humanSide;
 }
 
+function pieceHTML(p){
+  if(!p) return '';
+  if(G.style==='silly' && typeof pieceSilly==='function') return pieceSilly(p);
+  if(G.style==='emoji' && typeof pieceEmoji==='function') return pieceEmoji(p);
+  if(G.style==='animal' && typeof pieceAnimal==='function') return pieceAnimal(p);
+  if(G.style==='sym' && typeof pieceSym==='function') return pieceSym(p);
+  return pieceSVG(p);
+}
 function renderPiece(p){
   if(!p) return '';
-  var html;
-  if(G.style==='silly' && typeof pieceSilly==='function') html=pieceSilly(p);
-  else if(G.style==='emoji' && typeof pieceEmoji==='function') html=pieceEmoji(p);
-  else if(G.style==='animal' && typeof pieceAnimal==='function') html=pieceAnimal(p);
-  else if(G.style==='sym' && typeof pieceSym==='function') html=pieceSym(p);
-  else html=pieceSVG(p);
-  if(G.mode==='2p' && colorOf(p)===B) html="<span class='flip180'>"+html+"</span>";
+  var html=pieceHTML(p);
+  if(G.mode==='2p' && colorOf(p)===B)
+    html="<span class='flip180' style='width:"+CELL+"px;height:"+CELL+"px'>"+html+"</span>";
   return html;
+}
+function drawKey(){
+  if(!$('key')) return;
+  var types=['K','Q','R','B','N','P'],
+      names={K:'King',Q:'Queen',R:'Rook',B:'Bishop',N:'Knight',P:'Pawn'}, h='';
+  for(var i=0;i<types.length;i++){
+    h+="<span class='kitem'><span class='kpc'>"+pieceHTML(types[i])+"</span>"+names[types[i]]+"</span>";
+  }
+  $('key').innerHTML='<b>Key:</b> '+h+' &nbsp; (your pieces are outlined / white)';
 }
 function drawBoard(){
   var flip=viewFlipped(), dim=' style="width:'+CELL+'px;height:'+CELL+'px"';
@@ -80,7 +93,7 @@ function drawBoard(){
   html+='</table>';
   $('boardwrap').innerHTML=html;
 }
-function render(){ CELL=cellSize(); drawBoard(); fitBoard(); }
+function render(){ CELL=cellSize(); drawBoard(); fitBoard(); drawKey(); }
 /* shrink the cell so the whole board fits the screen height (accounts for the
    controls/header above the board). Only shrinks, never grows past width-fit. */
 function fitBoard(){

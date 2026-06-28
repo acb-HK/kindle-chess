@@ -42,6 +42,7 @@
   <button onclick="resetPuzzle()">Retry</button>
   <button onclick="nextPuzzle()">Next &rarr;</button>
 </div>
+<div class="key" id="key"></div>
 <div class="note" id="meta"></div>
 
 <script src="engine.js"></script>
@@ -59,6 +60,15 @@ function pzPiece(p){
   return pieceSVG(p);
 }
 function setPzStyle(v){ PZSTYLE=v; if(v==='silly' && typeof buildSillyArmies==='function') buildSillyArmies(); render(); }
+function drawKey(){
+  if(!document.getElementById('key')) return;
+  var types=['K','Q','R','B','N','P'],
+      names={K:'King',Q:'Queen',R:'Rook',B:'Bishop',N:'Knight',P:'Pawn'}, h='';
+  for(var i=0;i<types.length;i++){
+    h+="<span class='kitem'><span class='kpc'>"+pzPiece(types[i])+"</span>"+names[types[i]]+"</span>";
+  }
+  document.getElementById('key').innerHTML='<b>Key:</b> '+h;
+}
 var list=[], idx=0;
 var PZ={board:null,turn:W,castle:null,ep:null,sel:null,solved:false,hintSq:null,puz:null,solver:W};
 
@@ -110,7 +120,7 @@ function drawBoard(){
   html+='</table>';
   $('boardwrap').innerHTML=html;
 }
-function render(){ CELL=cellSize(); drawBoard(); fitBoard(); }
+function render(){ CELL=cellSize(); drawBoard(); fitBoard(); drawKey(); }
 function fitBoard(){
   var bw=$('boardwrap'); if(!bw)return;
   var top=0, el=bw; while(el){ top+=el.offsetTop; el=el.offsetParent; }
