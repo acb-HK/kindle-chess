@@ -2,7 +2,7 @@
    show immediately when online; cache is the offline fallback. Kindle's old
    browser likely ignores service workers — for guaranteed Kindle offline,
    sideload the folder and open via file://. */
-var CACHE='kindle-chess-v10';
+var CACHE='kindle-chess-v11';
 var ASSETS=['./','index.html','puzzles.html','style.css',
   'engine.js','ui.js','svg-pieces.js','pieces-animals.js','pieces-silly.js','pieces-emoji.js','puzzles-data.js','manifest.webmanifest'];
 self.addEventListener('install',function(e){

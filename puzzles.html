@@ -120,16 +120,7 @@ function drawBoard(){
   html+='</table>';
   $('boardwrap').innerHTML=html;
 }
-function render(){ CELL=cellSize(); drawBoard(); fitBoard(); drawKey(); }
-function fitBoard(){
-  var bw=$('boardwrap'); if(!bw)return;
-  var top=0, el=bw; while(el){ top+=el.offsetTop; el=el.offsetParent; }
-  var availH=(window.innerHeight||0)-top-RESERVE_BELOW;
-  if(availH<=0)return;
-  var byH=Math.floor(availH/8);
-  if(byH<28)byH=28;
-  if(byH<CELL){ CELL=byH; drawBoard(); }
-}
+function render(){ CELL=cellSize(); drawBoard(); drawKey(); }
 window.onresize=function(){ if(PZ.board) render(); };
 function movesFrom(r,c){
   var all=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep),out=[];
