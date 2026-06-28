@@ -10,8 +10,7 @@
 <body>
 <h1>Chess</h1>
 <nav>
-  <a href="index.html" class="on">Pieces</a>
-  <a href="emoji.html">Emoji</a>
+  <a href="index.html" class="on">Play</a>
   <a href="puzzles.html">Puzzles</a>
 </nav>
 
@@ -36,10 +35,17 @@
       <option value="3">Hard</option>
     </select>
   </label>
-  <label><input type="checkbox" id="flip" checked oninput="G.flip2p=this.checked;render();"> flip each turn (2P)</label>
+  <label>Pieces
+    <select id="style" onchange="setStyle(this.value)">
+      <option value="svg" selected>Classic</option>
+      <option value="sym">Symbols</option>
+      <option value="emoji">Emoji (fun)</option>
+    </select>
+  </label>
 </div>
 
 <div id="status"></div>
+<div id="quip"></div>
 <div id="boardwrap"></div>
 
 <div class="ctl">
@@ -48,12 +54,14 @@
 </div>
 
 <div id="moves"></div>
-<div class="note">You are White unless you choose Black. Tap a piece, then tap its destination.
-  Move list uses board coordinates (e2&rarr;e4, capture e2&times;d3, O-O = castle).</div>
+<div class="note">Tap a piece, then tap its destination. Moves shown as coordinates
+  (e2&rarr;e4, capture e2&times;d3, O-O = castle).<br>
+  <b>2 Players:</b> sit at opposite ends — Black's pieces turn upside-down so they face the player at that end.<br>
+  <b>Emoji:</b> silly pieces (re-rolled each game) + random cheeky comments. If pieces show as boxes on your Kindle, pick <b>Symbols</b>.</div>
 
 <script src="engine.js"></script>
 <script src="svg-pieces.js"></script>
-<script>window.PIECE_RENDER = pieceSVG;</script>
+<script src="pieces-emoji.js"></script>
 <script src="ui.js"></script>
 <script>
 newGame();

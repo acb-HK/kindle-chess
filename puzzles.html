@@ -10,8 +10,7 @@
 <body>
 <h1>Chess Puzzles</h1>
 <nav>
-  <a href="index.html">Pieces</a>
-  <a href="emoji.html">Emoji</a>
+  <a href="index.html">Play</a>
   <a href="puzzles.html" class="on">Puzzles</a>
 </nav>
 
@@ -28,6 +27,7 @@
 </div>
 
 <div id="status"></div>
+<div id="banner" class="banner hide"></div>
 <div id="boardwrap"></div>
 
 <div class="ctl">
@@ -41,29 +41,36 @@
 <script src="svg-pieces.js"></script>
 <script src="puzzles-data.js"></script>
 <script>
+var WIN=['Solved! 🎉','Nailed it! 🏆','Brilliant! ⭐','Checkmate champ! 👑','Yes! 💪','Too easy? 😎'];
 var list=[], idx=0;
-var PZ={board:null,turn:W,castle:null,ep:null,sel:null,solved:false,hintSq:null,puz:null};
+var PZ={board:null,turn:W,castle:null,ep:null,sel:null,solved:false,hintSq:null,puz:null,solver:W};
+
+function $(id){return document.getElementById(id);}
+function setStatus(t){ $('status').innerHTML=t; }
+function banner(cls,txt){ var b=$('banner'); b.className='banner '+cls; b.innerHTML=txt; }
+function hideBanner(){ $('banner').className='banner hide'; }
 
 function buildList(){
-  var d=document.getElementById('diff').value;
-  list=[]; for(var i=0;i<PUZZLES.length;i++){ if(d==='All'||PUZZLES[i].diff===d) list.push(PUZZLES[i]); }
+  var d=$('diff').value; list=[];
+  for(var i=0;i<PUZZLES.length;i++){ if(d==='All'||PUZZLES[i].diff===d) list.push(PUZZLES[i]); }
   idx=0;
 }
-function applyFilter(){ buildList(); if(list.length) loadPuzzle(); else { document.getElementById('boardwrap').innerHTML=''; setStatus('No puzzles for that level.'); } }
+function applyFilter(){ buildList(); if(list.length) loadPuzzle(); else { $('boardwrap').innerHTML=''; hideBanner(); setStatus('No puzzles for that level.'); } }
 function shufflePuzzles(){ buildList(); for(var i=list.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=list[i];list[i]=list[j];list[j]=t;} if(list.length) loadPuzzle(); }
 function nextPuzzle(){ if(!list.length)return; idx=(idx+1)%list.length; loadPuzzle(); }
-function setStatus(t){ document.getElementById('status').innerHTML=t; }
 
 function loadPuzzle(){
   var p=list[idx]; PZ.puz=p;
   var st=parseFEN(p.fen);
   PZ.board=st.board; PZ.turn=st.turn; PZ.castle=st.castle; PZ.ep=st.ep;
+  PZ.solver=st.turn;            /* lock board orientation for the whole puzzle */
   PZ.sel=null; PZ.solved=false; PZ.hintSq=null;
+  hideBanner();
   setStatus((PZ.turn===W?'White':'Black')+' to move — '+p.goal);
-  document.getElementById('meta').innerHTML='Puzzle '+(idx+1)+' of '+list.length+' &nbsp; ('+p.diff+')';
+  $('meta').innerHTML='Puzzle '+(idx+1)+' of '+list.length+' &nbsp; ('+p.diff+')';
   render();
 }
-function flip(){ return PZ.turn===B; } /* view from side to move */
+function flip(){ return PZ.solver===B; }   /* fixed — does NOT change when the move is played */
 
 function render(){
   var fl=flip();
@@ -84,7 +91,7 @@ function render(){
     html+='</tr>';
   }
   html+='</table>';
-  document.getElementById('boardwrap').innerHTML=html;
+  $('boardwrap').innerHTML=html;
 }
 function movesFrom(r,c){
   var all=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep),out=[];
@@ -112,15 +119,18 @@ function tryMove(m){
   if(p.type==='mate') ok = isMate;
   else { ok=false; for(var i=0;i<p.sol.length;i++){ if(p.sol[i]===mvStr) ok=true; } }
   if(ok){
-    PZ.board=st.board; PZ.turn=opp; PZ.castle=st.castle; PZ.ep=st.ep;
+    PZ.board=st.board; PZ.castle=st.castle; PZ.ep=st.ep;  /* keep PZ.turn for orientation lock */
     PZ.sel=null; PZ.solved=true; render();
-    setStatus('✓ Solved! '+(p.desc||''));
+    banner('ok', WIN[Math.floor(Math.random()*WIN.length)]);
+    setStatus(p.desc||'');
   } else {
     PZ.sel=null; render();
-    setStatus('✗ Not it — try again. ('+(PZ.puz.turn===W?'White':'Black')+' to move, '+p.goal+')');
+    banner('no','✗ Not quite — try again');
+    setStatus((PZ.solver===W?'White':'Black')+' to move — '+p.goal);
   }
 }
 function hint(){
+  if(PZ.solved)return;
   var p=PZ.puz, hs=null;
   if(p.type==='mate'){
     var ms=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep);
