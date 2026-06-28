@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Kindle Chess — Puzzles</title>
+<style>
+/* Kindle Chess — styles. NO viewport (vw/vh) units: the Kindle Paperwhite
+   browser does not support them. Board cells are sized in real px by JS
+   (see cellSize() in svg-pieces.js). Fonts use fixed px. */
+*{box-sizing:border-box;}
+body{font-family:Georgia,'Times New Roman',serif;margin:0;padding:4px 4px 24px;
+     background:#fff;color:#000;-webkit-text-size-adjust:100%;}
+h1{font-size:22px;margin:4px 0;text-align:center;}
+nav{text-align:center;font-size:16px;margin:2px 0 6px;border-bottom:1px solid #000;padding-bottom:5px;}
+nav a{color:#000;text-decoration:none;margin:0 8px;padding:2px 4px;}
+nav a.on{font-weight:bold;text-decoration:underline;}
+#status{text-align:center;font-size:18px;margin:6px 0;min-height:20px;font-weight:bold;}
+
+/* board — cells get inline px width/height from JS */
+table.board{border-collapse:collapse;margin:0 auto;border:3px solid #000;}
+table.board td{padding:0;border:1px solid #000;text-align:center;vertical-align:middle;position:relative;}
+table.board td svg{display:block;margin:auto;width:90%;height:90%;}
+.lt{background:#f4f4f4;}
+.dk{background:#9b9b9b;}
+.sel{box-shadow:inset 0 0 0 4px #000;outline:3px solid #000;outline-offset:-4px;}
+.dot:after{content:"";position:absolute;left:50%;top:50%;width:14px;height:14px;
+     margin:-7px 0 0 -7px;border-radius:50%;background:#555;}
+.coord{font-size:11px;color:#333;position:absolute;pointer-events:none;line-height:1;}
+.coord.file{right:2px;bottom:1px;}
+.coord.rank{left:2px;top:1px;}
+
+.ctl{text-align:center;margin:8px 0;}
+.ctl label{font-size:15px;margin:0 5px;display:inline-block;}
+button,select{font-size:16px;border:1px solid #000;background:#eee;color:#000;
+     padding:6px 10px;margin:3px;border-radius:4px;font-family:inherit;}
+button:active{background:#ccc;}
+
+#moves{max-width:96%;margin:8px auto;font-size:15px;line-height:1.5;
+     border:1px solid #000;padding:6px;min-height:24px;word-wrap:break-word;}
+#moves b{display:inline-block;min-width:28px;}
+.note{font-size:13px;color:#333;text-align:center;margin:6px auto;max-width:96%;line-height:1.4;}
+
+/* emoji + symbol pieces (badge dims/font set inline in px by the renderer) */
+.badge{display:inline-block;border-radius:50%;border:2px solid #000;text-align:center;overflow:hidden;}
+.badge.wb{background:#fff;}
+.badge.bb{background:#000;}
+.sym{line-height:1;}
+
+/* 2-player: rotate Black's pieces so the opponent across the table sees them
+   upright. Wrapper is given explicit px size inline so the SVG can scale. */
+.flip180{display:inline-block;line-height:0;transform:rotate(180deg);-webkit-transform:rotate(180deg);}
+.flip180 svg{width:90%;height:90%;}
+.flip180 .badge,.flip180 .sym{vertical-align:middle;}
+
+/* piece key / legend */
+.key{font-size:13px;max-width:98%;margin:8px auto;border:1px solid #000;padding:6px;text-align:center;line-height:1.2;}
+.key .kitem{display:inline-block;margin:3px 7px;}
+.key .kpc{display:inline-block;width:30px;height:30px;vertical-align:middle;margin-right:2px;}
+.key .kpc svg{width:100%;height:100%;display:block;}
+
+/* random kid quip bubble (emoji mode) */
+#quip{text-align:center;min-height:24px;margin:2px 0;}
+#quip .bubble{display:inline-block;border:1px solid #000;border-radius:14px;
+     padding:4px 12px;font-size:16px;background:#fafafa;}
+
+/* puzzle solved / fail banner */
+.banner{text-align:center;font-size:22px;font-weight:bold;margin:6px auto;padding:8px;
+     border:3px solid #000;border-radius:8px;max-width:96%;}
+.banner.ok{background:#000;color:#fff;}
+.banner.no{background:#fff;color:#000;}
+.banner.hide{display:none;}
+
+</style>
+</head>
+<body>
+<h1>Chess Puzzles</h1>
+<nav>
+  <a href="index.html">Play</a>
+  <a href="puzzles.html" class="on">Puzzles</a>
+</nav>
+
+<div class="ctl">
+  <label>Difficulty
+    <select id="diff" onchange="applyFilter()">
+      <option value="All" selected>All</option>
+      <option value="Easy">Easy</option>
+      <option value="Medium">Medium</option>
+      <option value="Hard">Hard</option>
+    </select>
+  </label>
+  <label>Pieces
+    <select id="pstyle" onchange="setPzStyle(this.value)">
+      <option value="svg" selected>Classic</option>
+      <option value="animal">Animals</option>
+      <option value="silly">Silly</option>
+    </select>
+  </label>
+  <button onclick="shufflePuzzles()">Shuffle</button>
+</div>
+
+<div id="status"></div>
+<div id="banner" class="banner hide"></div>
+<div id="boardwrap"></div>
+
+<div class="ctl">
+  <button onclick="hint()">Hint</button>
+  <button onclick="resetPuzzle()">Retry</button>
+  <button onclick="nextPuzzle()">Next &rarr;</button>
+</div>
+<div class="key" id="key"></div>
+<div class="note" id="meta"></div>
+
+<script>
+/* ============================================================
+   Kindle Chess — shared engine (pure logic, no DOM).
+   ES5 only for old Kindle WebKit. Used by index/emoji/puzzles.
+   ============================================================ */
+var W='w', B='b';
+
+function startPos(){
+  return [
+    ['r','n','b','q','k','b','n','r'],
+    ['p','p','p','p','p','p','p','p'],
+    ['','','','','','','',''],
+    ['','','','','','','',''],
+    ['','','','','','','',''],
+    ['','','','','','','',''],
+    ['P','P','P','P','P','P','P','P'],
+    ['R','N','B','Q','K','B','N','R']
+  ];
+}
+function clone(b){var n=[];for(var r=0;r<8;r++){n.push(b[r].slice());}return n;}
+function isWhite(p){return p && p===p.toUpperCase();}
+function isBlack(p){return p && p===p.toLowerCase();}
+function colorOf(p){return p?(isWhite(p)?W:B):'';}
+function other(c){return c===W?B:W;}
+function onBoard(r,c){return r>=0&&r<8&&c>=0&&c<8;}
+
+/* ---- coordinate naming ---- */
+function sq(r,c){return String.fromCharCode(97+c)+(8-r);}      /* a1..h8 */
+function parseSquare(s){return {r:8-parseInt(s.charAt(1),10), c:s.charCodeAt(0)-97};}
+
+/* ---- move generation (pseudo-legal) ---- */
+function mk(fr,fc,tr,tc,extra){var m={fr:fr,fc:fc,tr:tr,tc:tc};if(extra)for(var k in extra)m[k]=extra[k];return m;}
+function genMoves(b,color,cst,epSq){
+  var moves=[],r,c;
+  for(r=0;r<8;r++)for(c=0;c<8;c++){
+    var p=b[r][c]; if(!p||colorOf(p)!==color)continue;
+    var up=p.toUpperCase();
+    if(up==='P') pawnMoves(b,r,c,color,epSq,moves);
+    else if(up==='N') stepMoves(b,r,c,color,moves,[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]);
+    else if(up==='K'){ stepMoves(b,r,c,color,moves,[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
+                       castleMoves(b,r,c,color,cst,moves); }
+    else if(up==='B') slideMoves(b,r,c,color,moves,[[-1,-1],[-1,1],[1,-1],[1,1]]);
+    else if(up==='R') slideMoves(b,r,c,color,moves,[[-1,0],[1,0],[0,-1],[0,1]]);
+    else if(up==='Q') slideMoves(b,r,c,color,moves,[[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]]);
+  }
+  return moves;
+}
+function pawnMoves(b,r,c,color,epSq,moves){
+  var dir=color===W?-1:1, startRow=color===W?6:1, promoRow=color===W?0:7, nr=r+dir;
+  if(onBoard(nr,c)&&!b[nr][c]){
+    addPawn(moves,r,c,nr,c,nr===promoRow);
+    if(r===startRow&&!b[r+2*dir][c]) moves.push(mk(r,c,r+2*dir,c,{dbl:true}));
+  }
+  for(var dc=-1;dc<=1;dc+=2){var tc=c+dc; if(!onBoard(nr,tc))continue;
+    if(b[nr][tc]&&colorOf(b[nr][tc])!==color) addPawn(moves,r,c,nr,tc,nr===promoRow);
+    if(epSq&&epSq.r===nr&&epSq.c===tc) moves.push(mk(r,c,nr,tc,{ep:true}));
+  }
+}
+function addPawn(moves,r,c,nr,nc,promo){
+  if(promo) moves.push(mk(r,c,nr,nc,{promo:true}));
+  else moves.push(mk(r,c,nr,nc));
+}
+function stepMoves(b,r,c,color,moves,deltas){
+  for(var i=0;i<deltas.length;i++){var nr=r+deltas[i][0],nc=c+deltas[i][1];
+    if(!onBoard(nr,nc))continue;
+    if(!b[nr][nc]||colorOf(b[nr][nc])!==color) moves.push(mk(r,c,nr,nc));
+  }
+}
+function slideMoves(b,r,c,color,moves,dirs){
+  for(var i=0;i<dirs.length;i++){var dr=dirs[i][0],dc=dirs[i][1],nr=r+dr,nc=c+dc;
+    while(onBoard(nr,nc)){
+      if(!b[nr][nc]){moves.push(mk(r,c,nr,nc));}
+      else{ if(colorOf(b[nr][nc])!==color)moves.push(mk(r,c,nr,nc)); break;}
+      nr+=dr;nc+=dc;
+    }
+  }
+}
+function castleMoves(b,r,c,color,cst,moves){
+  if(color===W&&r===7&&c===4){
+    if(cst.wk&&!b[7][5]&&!b[7][6]&&b[7][7]==='R'&&!attacked(b,7,4,B)&&!attacked(b,7,5,B)&&!attacked(b,7,6,B))
+      moves.push(mk(7,4,7,6,{castle:'wk'}));
+    if(cst.wq&&!b[7][3]&&!b[7][2]&&!b[7][1]&&b[7][0]==='R'&&!attacked(b,7,4,B)&&!attacked(b,7,3,B)&&!attacked(b,7,2,B))
+      moves.push(mk(7,4,7,2,{castle:'wq'}));
+  }
+  if(color===B&&r===0&&c===4){
+    if(cst.bk&&!b[0][5]&&!b[0][6]&&b[0][7]==='r'&&!attacked(b,0,4,W)&&!attacked(b,0,5,W)&&!attacked(b,0,6,W))
+      moves.push(mk(0,4,0,6,{castle:'bk'}));
+    if(cst.bq&&!b[0][3]&&!b[0][2]&&!b[0][1]&&b[0][0]==='r'&&!attacked(b,0,4,W)&&!attacked(b,0,3,W)&&!attacked(b,0,2,W))
+      moves.push(mk(0,4,0,2,{castle:'bq'}));
+  }
+}
+
+/* ---- attack / check detection ---- */
+function attacked(b,r,c,byColor){
+  var dir=byColor===W?1:-1, pr=r+dir, pp=byColor===W?'P':'p', i;
+  if(onBoard(pr,c-1)&&b[pr][c-1]===pp)return true;
+  if(onBoard(pr,c+1)&&b[pr][c+1]===pp)return true;
+  var nd=[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]], kn=byColor===W?'N':'n';
+  for(i=0;i<nd.length;i++){var rr=r+nd[i][0],cc=c+nd[i][1];if(onBoard(rr,cc)&&b[rr][cc]===kn)return true;}
+  var kd=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]], kk=byColor===W?'K':'k';
+  for(i=0;i<kd.length;i++){var r2=r+kd[i][0],c2=c+kd[i][1];if(onBoard(r2,c2)&&b[r2][c2]===kk)return true;}
+  if(slideHit(b,r,c,[[-1,-1],[-1,1],[1,-1],[1,1]],byColor===W?['B','Q']:['b','q']))return true;
+  if(slideHit(b,r,c,[[-1,0],[1,0],[0,-1],[0,1]],byColor===W?['R','Q']:['r','q']))return true;
+  return false;
+}
+function slideHit(b,r,c,dirs,pieces){
+  for(var i=0;i<dirs.length;i++){var dr=dirs[i][0],dc=dirs[i][1],nr=r+dr,nc=c+dc;
+    while(onBoard(nr,nc)){var p=b[nr][nc];
+      if(p){for(var j=0;j<pieces.length;j++){if(p===pieces[j])return true;}break;}
+      nr+=dr;nc+=dc;
+    }
+  }
+  return false;
+}
+function findKing(b,color){var k=color===W?'K':'k';
+  for(var r=0;r<8;r++)for(var c=0;c<8;c++)if(b[r][c]===k)return{r:r,c:c};return null;}
+function inCheck(b,color){var k=findKing(b,color);if(!k)return false;return attacked(b,k.r,k.c,other(color));}
+
+/* ---- apply move ---- */
+function applyMove(b,m,cst,color){
+  var nb=clone(b), nc={wk:cst.wk,wq:cst.wq,bk:cst.bk,bq:cst.bq}, nep=null;
+  var p=nb[m.fr][m.fc];
+  nb[m.tr][m.tc]=p; nb[m.fr][m.fc]='';
+  if(m.ep) nb[m.fr][m.tc]='';
+  if(m.promo) nb[m.tr][m.tc]= color===W?'Q':'q';
+  if(m.dbl) nep={r:(m.fr+m.tr)/2,c:m.fc};
+  if(m.castle){
+    if(m.castle==='wk'){nb[7][5]='R';nb[7][7]='';}
+    if(m.castle==='wq'){nb[7][3]='R';nb[7][0]='';}
+    if(m.castle==='bk'){nb[0][5]='r';nb[0][7]='';}
+    if(m.castle==='bq'){nb[0][3]='r';nb[0][0]='';}
+  }
+  if(p==='K'){nc.wk=false;nc.wq=false;}
+  if(p==='k'){nc.bk=false;nc.bq=false;}
+  if(m.fr===7&&m.fc===0)nc.wq=false; if(m.fr===7&&m.fc===7)nc.wk=false;
+  if(m.fr===0&&m.fc===0)nc.bq=false; if(m.fr===0&&m.fc===7)nc.bk=false;
+  if(m.tr===7&&m.tc===0)nc.wq=false; if(m.tr===7&&m.tc===7)nc.wk=false;
+  if(m.tr===0&&m.tc===0)nc.bq=false; if(m.tr===0&&m.tc===7)nc.bk=false;
+  return {board:nb,castle:nc,ep:nep};
+}
+function legalMoves(b,color,cst,epSq){
+  var pseudo=genMoves(b,color,cst,epSq),out=[];
+  for(var i=0;i<pseudo.length;i++){
+    var st=applyMove(b,pseudo[i],cst,color);
+    if(!inCheck(st.board,color)) out.push(pseudo[i]);
+  }
+  return out;
+}
+
+/* ---- evaluation (material + piece-square tables) ---- */
+var VAL={P:100,N:320,B:330,R:500,Q:900,K:20000};
+var PST={
+ P:[[0,0,0,0,0,0,0,0],[50,50,50,50,50,50,50,50],[10,10,20,30,30,20,10,10],
+    [5,5,10,25,25,10,5,5],[0,0,0,20,20,0,0,0],[5,-5,-10,0,0,-10,-5,5],
+    [5,10,10,-20,-20,10,10,5],[0,0,0,0,0,0,0,0]],
+ N:[[-50,-40,-30,-30,-30,-30,-40,-50],[-40,-20,0,0,0,0,-20,-40],[-30,0,10,15,15,10,0,-30],
+    [-30,5,15,20,20,15,5,-30],[-30,0,15,20,20,15,0,-30],[-30,5,10,15,15,10,5,-30],
+    [-40,-20,0,5,5,0,-20,-40],[-50,-40,-30,-30,-30,-30,-40,-50]],
+ B:[[-20,-10,-10,-10,-10,-10,-10,-20],[-10,0,0,0,0,0,0,-10],[-10,0,5,10,10,5,0,-10],
+    [-10,5,5,10,10,5,5,-10],[-10,0,10,10,10,10,0,-10],[-10,10,10,10,10,10,10,-10],
+    [-10,5,0,0,0,0,5,-10],[-20,-10,-10,-10,-10,-10,-10,-20]],
+ R:[[0,0,0,0,0,0,0,0],[5,10,10,10,10,10,10,5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],
+    [-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[0,0,0,5,5,0,0,0]],
+ Q:[[-20,-10,-10,-5,-5,-10,-10,-20],[-10,0,0,0,0,0,0,-10],[-10,0,5,5,5,5,0,-10],
+    [-5,0,5,5,5,5,0,-5],[0,0,5,5,5,5,0,-5],[-10,5,5,5,5,5,0,-10],
+    [-10,0,5,0,0,0,0,-10],[-20,-10,-10,-5,-5,-10,-10,-20]],
+ K:[[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],
+    [-30,-40,-40,-50,-50,-40,-40,-30],[-20,-30,-30,-40,-40,-30,-30,-20],[-10,-20,-20,-20,-20,-20,-20,-10],
+    [20,20,0,0,0,0,20,20],[20,30,10,0,0,10,30,20]]
+};
+function evaluate(b){
+  var s=0;
+  for(var r=0;r<8;r++)for(var c=0;c<8;c++){var p=b[r][c];if(!p)continue;
+    var up=p.toUpperCase(), v=VAL[up];
+    if(isWhite(p)) s += v + PST[up][r][c];
+    else           s -= v + PST[up][7-r][c];
+  }
+  return s; /* + = good for White */
+}
+
+/* ---- alpha-beta search ---- */
+function search(b,color,cst,epSq,depth,alpha,beta){
+  if(depth===0) return evaluate(b);
+  var moves=legalMoves(b,color,cst,epSq),i;
+  if(moves.length===0){
+    if(inCheck(b,color)) return color===W ? -100000-depth : 100000+depth;
+    return 0;
+  }
+  if(color===W){
+    var best=-1e9;
+    for(i=0;i<moves.length;i++){var st=applyMove(b,moves[i],cst,color);
+      var v=search(st.board,B,st.castle,st.ep,depth-1,alpha,beta);
+      if(v>best)best=v; if(best>alpha)alpha=best; if(alpha>=beta)break;}
+    return best;
+  }else{
+    var b2=1e9;
+    for(i=0;i<moves.length;i++){var s2=applyMove(b,moves[i],cst,color);
+      var v2=search(s2.board,W,s2.castle,s2.ep,depth-1,alpha,beta);
+      if(v2<b2)b2=v2; if(b2<beta)beta=b2; if(alpha>=beta)break;}
+    return b2;
+  }
+}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+
+/* level: 0 Beginner, 1 Easy, 2 Medium, 3 Hard */
+function pickMove(b,color,cst,epSq,level){
+  var moves=legalMoves(b,color,cst,epSq);
+  if(moves.length===0)return null;
+  shuffle(moves);
+  if(level===0 && Math.random()<0.5) return moves[0]; /* Beginner: often plays random legal move */
+  var depth = level<=1?1 : level===2?2 : 3;
+  var best=null, bestVal=color===W?-1e9:1e9, i;
+  for(i=0;i<moves.length;i++){
+    var st=applyMove(b,moves[i],cst,color);
+    var v=search(st.board,other(color),st.castle,st.ep,depth-1,-1e9,1e9);
+    if(color===W){ if(v>bestVal){bestVal=v;best=moves[i];} }
+    else { if(v<bestVal){bestVal=v;best=moves[i];} }
+  }
+  return best;
+}
+
+/* ---- long-algebraic notation with capture/check/mate marks ---- */
+function notation(b,m,color,cst,epSq){
+  if(m.castle) return (m.castle==='wk'||m.castle==='bk') ? 'O-O' : 'O-O-O';
+  var p=b[m.fr][m.fc], up=p.toUpperCase();
+  var letter = up==='P' ? '' : up;
+  var capture = (b[m.tr][m.tc]!=='') || m.ep;
+  var s = letter + sq(m.fr,m.fc) + (capture?'×':'→') + sq(m.tr,m.tc) + (m.promo?'=Q':'');
+  var st=applyMove(b,m,cst,color), opp=other(color);
+  if(inCheck(st.board,opp)) s += legalMoves(st.board,opp,st.castle,st.ep).length===0 ? '#' : '+';
+  return s;
+}
+
+/* ---- FEN parser (for puzzles) ---- */
+function parseFEN(fen){
+  var parts=fen.split(/\s+/), rows=parts[0].split('/'), b=[],r,c;
+  for(r=0;r<8;r++){var row=[],s=rows[r];
+    for(c=0;c<s.length;c++){var ch=s.charAt(c);
+      if(ch>='1'&&ch<='8'){var n=parseInt(ch,10);for(var k=0;k<n;k++)row.push('');}
+      else row.push(ch);
+    }
+    b.push(row);
+  }
+  var turn = parts[1]==='b' ? B : W;
+  var cr = parts[2]||'-';
+  var cst={wk:cr.indexOf('K')>=0, wq:cr.indexOf('Q')>=0, bk:cr.indexOf('k')>=0, bq:cr.indexOf('q')>=0};
+  var ep = (parts[3]&&parts[3]!=='-') ? parseSquare(parts[3]) : null;
+  return {board:b,turn:turn,castle:cst,ep:ep};
+}
+
+</script>
+<script>
+/* Board cell size in REAL pixels (Kindle Paperwhite browser has no vw units).
+   Computed from screen width so the board fills it; clamped for desktop. */
+var CELL=60;
+/* Rows' worth of height kept free BELOW the board (for buttons + key), scaling
+   with cell size. Bigger = smaller board. ~3 leaves room for the key on screen. */
+var RESERVE_ROWS=3;
+/* Cell size from BOTH width and the height left under the controls. */
+function cellSize(){
+  var w = window.innerWidth || document.documentElement.clientWidth || 320;
+  var h = window.innerHeight || document.documentElement.clientHeight || 480;
+  var byW = Math.floor((w-8)/8);
+  var top = 130;
+  var bw = (typeof document!=='undefined') ? document.getElementById('boardwrap') : null;
+  if(bw){ var t=0, el=bw; while(el){ t+=el.offsetTop; el=el.offsetParent; } if(t>0) top=t; }
+  /* divide remaining height into 8 board rows + RESERVE_ROWS for buttons/key */
+  var byH = Math.floor((h-top-6)/(8+RESERVE_ROWS));
+  var s = Math.min(byW, byH);
+  if(s<24) s=24;
+  if(s>96) s=96;
+  return s;
+}
+
+/* Inline SVG chess pieces — crisp on e-ink, no fonts/CDN. White=outlined, Black=solid. */
+function pieceSVG(p){
+  if(!p) return '';
+  var white=(p===p.toUpperCase()), t=p.toUpperCase();
+  var fill=white?'#ffffff':'#000000', dtl=white?'#000000':'#ffffff', b='';
+  if(t==='P'){
+    b="<circle cx='22.5' cy='13' r='6'/>"+
+      "<path d='M16,40 C16,31 19,27 22.5,20 C26,27 29,31 29,40 Z'/>"+
+      "<rect x='13' y='38' width='19' height='4' rx='1.5'/>";
+  } else if(t==='R'){
+    b="<rect x='11' y='38' width='23' height='4' rx='1.5'/>"+
+      "<path d='M14,38 L15,24 L30,24 L31,38 Z'/>"+
+      "<path d='M12,24 L12,16 L16,16 L16,19 L19,19 L19,16 L26,16 L26,19 L29,19 L29,16 L33,16 L33,24 Z'/>";
+  } else if(t==='N'){
+    b="<rect x='13' y='38' width='20' height='4' rx='1.5'/>"+
+      "<path d='M14,40 C13,32 15,25 20,21 C16,23 14,26 13,28 C11,26 11,22 13,19 C16,14 21,12 24,11 C23,13 24,15 26,16 C30,21 32,29 32,40 Z'/>"+
+      "<circle cx='17' cy='20' r='1.4' fill='"+dtl+"' stroke='none'/>";
+  } else if(t==='B'){
+    b="<rect x='12' y='38' width='21' height='4' rx='1.5'/>"+
+      "<path d='M16,39 C15,31 17,25 22.5,17 C28,25 30,31 29,39 Z'/>"+
+      "<ellipse cx='22.5' cy='15' rx='5.5' ry='8'/>"+
+      "<circle cx='22.5' cy='7' r='2.6'/>"+
+      "<path d='M19.5,16 L25.5,16' stroke='"+dtl+"' stroke-width='1.4' fill='none'/>";
+  } else if(t==='Q'){
+    b="<rect x='11' y='38' width='23' height='4' rx='1.5'/>"+
+      "<path d='M14,38 L12,23 L33,23 L31,38 Z'/>"+
+      "<path d='M12,24 L9,12 L15,19 L18,10 L22.5,18 L27,10 L30,19 L36,12 L33,24 Z'/>"+
+      "<circle cx='9' cy='12' r='2'/><circle cx='18' cy='10' r='2'/><circle cx='22.5' cy='9' r='2'/><circle cx='27' cy='10' r='2'/><circle cx='36' cy='12' r='2'/>";
+  } else {
+    b="<rect x='11' y='38' width='23' height='4' rx='1.5'/>"+
+      "<path d='M14,38 L12,24 L33,24 L31,38 Z'/>"+
+      "<path d='M12,25 C16,19 29,19 33,25 L31,26 C28,21 17,21 14,26 Z'/>"+
+      "<rect x='21' y='5' width='3' height='10' rx='0.5'/>"+
+      "<rect x='18' y='8' width='9' height='3' rx='0.5'/>";
+  }
+  return "<svg viewBox='0 0 45 45'><g fill='"+fill+
+    "' stroke='#000' stroke-width='1.6' stroke-linejoin='round' stroke-linecap='round'>"+b+"</g></svg>";
+}
+
+</script>
+<script>
+/* Animal pieces in classic silhouette style — white = outlined, black = solid,
+   so they read clearly on e-ink (no font/emoji dependency).
+   K=Bear  Q=Swan  R=Elephant  B=Penguin  N=Horse  P=Fish */
+function pieceAnimal(p){
+  if(!p) return '';
+  var white=(p===p.toUpperCase()), t=p.toUpperCase();
+  var fill=white?'#ffffff':'#000000', dtl=white?'#000000':'#ffffff', b='';
+  if(t==='P'){ /* fish */
+    b="<ellipse cx='20' cy='25' rx='11' ry='7'/>"+
+      "<path d='M29,25 L40,19 L40,31 Z'/>"+
+      "<circle cx='14' cy='23' r='1.4' fill='"+dtl+"' stroke='none'/>";
+  } else if(t==='N'){ /* horse */
+    b="<path d='M14,40 C13,32 15,25 20,21 C16,23 14,26 13,28 C11,26 11,22 13,19 C16,14 21,12 24,11 C23,13 24,15 26,16 C30,21 32,29 32,40 Z'/>"+
+      "<circle cx='17' cy='20' r='1.4' fill='"+dtl+"' stroke='none'/>";
+  } else if(t==='R'){ /* elephant */
+    b="<ellipse cx='25' cy='23' rx='11' ry='8'/>"+
+      "<circle cx='13' cy='20' r='6'/>"+
+      "<circle cx='15' cy='15' r='4'/>"+
+      "<path d='M9,22 C6,26 7,33 10,35 C12,36 13,33 12,31 C10,30 11,27 13,26 Z'/>"+
+      "<rect x='18' y='29' width='3.5' height='9' rx='1'/>"+
+      "<rect x='29' y='29' width='3.5' height='9' rx='1'/>"+
+      "<circle cx='12' cy='18' r='1' fill='"+dtl+"' stroke='none'/>";
+  } else if(t==='B'){ /* penguin */
+    b="<ellipse cx='22' cy='27' rx='8' ry='12'/>"+
+      "<circle cx='22' cy='12' r='5'/>"+
+      "<path d='M26,12 L31,13 L26,15 Z'/>"+
+      "<ellipse cx='22' cy='29' rx='4' ry='8' fill='"+dtl+"' stroke='none'/>"+
+      "<path d='M14,24 L12,33' fill='none'/><path d='M30,24 L32,33' fill='none'/>"+
+      "<circle cx='20' cy='11' r='1' fill='"+dtl+"' stroke='none'/>";
+  } else if(t==='Q'){ /* swan */
+    b="<ellipse cx='25' cy='31' rx='10' ry='6'/>"+
+      "<path d='M19,32 C9,28 10,12 18,9 C20,8.5 20.5,12 19,13 C13,15 12,26 21,30 Z'/>"+
+      "<circle cx='18' cy='9' r='3'/>"+
+      "<path d='M15,8 L10,9 L15,11 Z'/>"+
+      "<path d='M34,29 L39,26 L36,32 Z'/>"+
+      "<circle cx='19' cy='8' r='0.9' fill='"+dtl+"' stroke='none'/>";
+  } else { /* bear (king) */
+    b="<ellipse cx='22' cy='33' rx='10' ry='8'/>"+
+      "<circle cx='13' cy='9' r='4'/>"+
+      "<circle cx='31' cy='9' r='4'/>"+
+      "<circle cx='22' cy='17' r='10'/>"+
+      "<ellipse cx='22' cy='21' rx='4' ry='3' fill='"+dtl+"' stroke='none'/>"+
+      "<circle cx='22' cy='19' r='1.3' fill='"+dtl+"' stroke='none'/>"+
+      "<circle cx='17' cy='15' r='1' fill='"+dtl+"' stroke='none'/>"+
+      "<circle cx='27' cy='15' r='1' fill='"+dtl+"' stroke='none'/>";
+  }
+  return "<svg viewBox='0 0 45 45'><g fill='"+fill+
+    "' stroke='#000' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'>"+b+"</g></svg>";
+}
+
+</script>
+<script>
+/* Silly pieces drawn as SVG (render on Kindle e-ink — no font/emoji needed).
+   White = outlined, Black = solid. Each type has a few variants; armies are
+   re-rolled each New Game, so sides often differ (prawns vs soldiers etc.). */
+
+/* --- pawns --- */
+function pPrawn(f,d){
+  return "<path d='M31,13 C37,16 37,25 31,30 C26,35 17,37 12,34 C8,32 9,27 13,28 C17,30 23,29 27,25 C30,22 29,18 25,17 C22,16 19,18 20,21 C17,21 16,15 21,13 C24,12 28,12 31,13 Z'/>"+
+    "<path d='M31,13 L38,9 L38,15 Z'/>"+
+    "<path d='M21,13 L18,6' fill='none'/><path d='M23,13 L23,5' fill='none'/>"+
+    "<circle cx='22' cy='16' r='1.3' fill='"+d+"' stroke='none'/>"+
+    "<path d='M16,31 L15,36' fill='none'/><path d='M20,32 L19,37' fill='none'/><path d='M24,31 L23,36' fill='none'/>";
+}
+function pMushroom(f,d){
+  return "<path d='M8,23 C8,13 18,7 22.5,7 C27,7 37,13 37,23 Z'/>"+
+    "<path d='M16,23 C16,31 16,37 18,39 L27,39 C29,37 29,31 29,23 Z'/>"+
+    "<circle cx='16' cy='17' r='2' fill='"+d+"' stroke='none'/><circle cx='26' cy='14' r='2.6' fill='"+d+"' stroke='none'/>"+
+    "<circle cx='30' cy='19' r='1.7' fill='"+d+"' stroke='none'/><circle cx='21' cy='12' r='1.6' fill='"+d+"' stroke='none'/>";
+}
+function pSoldier(f,d){
+  return "<path d='M10,25 C10,14 35,14 35,25 Z'/>"+
+    "<rect x='8' y='25' width='29' height='3.6' rx='1'/>"+
+    "<rect x='19' y='28' width='7' height='10' rx='1' fill='"+d+"' stroke='none'/>"+
+    "<circle cx='22.5' cy='14' r='2.2'/>";
+}
+/* --- knights --- */
+function nHorse(f,d){
+  return "<path d='M14,40 C13,32 15,25 20,21 C16,23 14,26 13,28 C11,26 11,22 13,19 C16,14 21,12 24,11 C23,13 24,15 26,16 C30,21 32,29 32,40 Z'/>"+
+    "<circle cx='17' cy='20' r='1.4' fill='"+d+"' stroke='none'/>";
+}
+function nUnicorn(f,d){
+  return nHorse(f,d)+"<path d='M23,11 L28,1 L25.5,12 Z'/>";
+}
+/* --- bishops --- */
+function bWizard(f,d){
+  return "<path d='M22.5,4 L12,30 L33,30 Z'/>"+
+    "<rect x='10' y='30' width='25' height='4' rx='1'/>"+
+    "<path d='M20.5,18 l1.4,3 3.2,0 -2.6,2 1,3.1 -2.5,-1.9 -2.5,1.9 1,-3.1 -2.6,-2 3.2,0 z' fill='"+d+"' stroke='none'/>";
+}
+function bChurch(f,d){
+  return "<rect x='12' y='21' width='21' height='17'/>"+
+    "<path d='M10,21 L22.5,10 L35,21 Z'/>"+
+    "<rect x='21' y='3' width='3' height='7'/><rect x='18.5' y='5' width='8' height='3'/>"+
+    "<path d='M19,38 L19,29 C19,26 26,26 26,29 L26,38 Z' fill='"+d+"' stroke='none'/>";
+}
+/* --- rooks --- */
+function rCastle(f,d){
+  return "<rect x='10' y='37' width='25' height='5' rx='1'/>"+
+    "<path d='M13,37 L14,22 L31,22 L32,37 Z'/>"+
+    "<path d='M11,22 L11,14 L15,14 L15,17 L18,17 L18,14 L27,14 L27,17 L30,17 L30,14 L34,14 L34,22 Z'/>"+
+    "<rect x='19' y='28' width='7' height='9' rx='1' fill='"+d+"' stroke='none'/>";
+}
+function rCastleFlag(f,d){
+  return rCastle(f,d)+"<path d='M22.5,14 L22.5,4' fill='none'/><path d='M22.5,4 L30,6.5 L22.5,9 Z'/>";
+}
+/* --- queens --- */
+function qCrown(f,d){
+  return "<path d='M10,30 C8,20 8,15 11,15 C13,15 13,20 15.5,20 C18.5,20 18.5,11 22.5,11 C26.5,11 26.5,20 29.5,20 C32,20 32,15 34,15 C37,15 37,20 35,30 Z'/>"+
+    "<rect x='10' y='30' width='25' height='5' rx='1'/>"+
+    "<circle cx='22.5' cy='11' r='2' fill='"+d+"' stroke='none'/>"+
+    "<circle cx='15.5' cy='20' r='1.5' fill='"+d+"' stroke='none'/><circle cx='29.5' cy='20' r='1.5' fill='"+d+"' stroke='none'/>";
+}
+function qPrincess(f,d){
+  return "<path d='M12,25 C12,14 33,14 33,25 C33,34 27,40 22.5,40 C18,40 12,34 12,25 Z'/>"+
+    "<path d='M13,17 L16,11 L19.5,15.5 L22.5,9 L25.5,15.5 L29,11 L32,17 Z'/>"+
+    "<circle cx='18' cy='24' r='1.4' fill='"+d+"' stroke='none'/><circle cx='27' cy='24' r='1.4' fill='"+d+"' stroke='none'/>"+
+    "<path d='M18,30 Q22.5,33 27,30' fill='none' stroke='"+d+"' stroke-width='1.3'/>";
+}
+/* --- kings --- */
+function kFrog(f,d){
+  return "<ellipse cx='22.5' cy='30' rx='14' ry='9'/>"+
+    "<circle cx='14' cy='15' r='5'/><circle cx='31' cy='15' r='5'/>"+
+    "<circle cx='14' cy='15' r='1.7' fill='"+d+"' stroke='none'/><circle cx='31' cy='15' r='1.7' fill='"+d+"' stroke='none'/>"+
+    "<path d='M13,31 Q22.5,38 32,31' fill='none' stroke='"+d+"' stroke-width='1.4'/>"+
+    "<path d='M9,35 L5,39' fill='none'/><path d='M36,35 L40,39' fill='none'/>"+
+    "<path d='M17,10 L19,5 L22.5,8.5 L26,5 L28,10 Z'/>";
+}
+function kCrown(f,d){
+  return "<path d='M9,30 L7,12 L15,20 L22.5,9 L30,20 L38,12 L36,30 Z'/>"+
+    "<rect x='9' y='30' width='27' height='6' rx='1'/>"+
+    "<circle cx='22.5' cy='9' r='2' fill='"+d+"' stroke='none'/>"+
+    "<circle cx='15' cy='21' r='1.5' fill='"+d+"' stroke='none'/><circle cx='30' cy='21' r='1.5' fill='"+d+"' stroke='none'/>";
+}
+
+var SP={ K:[kFrog,kCrown], Q:[qCrown,qPrincess], R:[rCastle,rCastleFlag],
+         B:[bWizard,bChurch], N:[nHorse,nUnicorn], P:[pPrawn,pMushroom,pSoldier] };
+var SNAME={K:['Frog King','Crown King'],Q:['Crown Queen','Princess'],R:['Castle','Flag Castle'],
+           B:['Wizard','Church'],N:['Horse','Unicorn'],P:['Prawn','Mushroom','Soldier']};
+
+var SILLY_W=null, SILLY_B=null;
+function rollSilly(){var m={},k=['K','Q','R','B','N','P'],i;for(i=0;i<k.length;i++){var t=k[i];m[t]=Math.floor(Math.random()*SP[t].length);}return m;}
+/* both sides use the SAME variant per type (both prawns, both wizards...) so it
+   isn't confusing — White vs Black is shown by outline-vs-solid, not by shape. */
+function buildSillyArmies(){ var a=rollSilly(); SILLY_W=a; SILLY_B=a; }
+
+function pieceSilly(p){
+  if(!p) return '';
+  if(!SILLY_W) buildSillyArmies();
+  var white=(p===p.toUpperCase()), t=p.toUpperCase();
+  var fill=white?'#ffffff':'#000000', dtl=white?'#000000':'#ffffff';
+  var idx=(white?SILLY_W:SILLY_B)[t];
+  var inner=SP[t][idx](fill,dtl);
+  return "<svg viewBox='0 0 45 45'><g fill='"+fill+
+    "' stroke='#000' stroke-width='1.5' stroke-linejoin='round' stroke-linecap='round'>"+inner+"</g></svg>";
+}
+
+</script>
+<script>
+/* Engine-verified puzzles (generated by brute-force + verification).
+   type 'mate' = deliver checkmate (any mating move accepted).
+   type 'move' = play a verified key move (from-to). sol holds accepted moves.
+   To expand later: add tactics from a larger DB; format unchanged. */
+var PUZZLES=[
+ {fen:"8/1Q6/8/8/8/4K3/8/4k3 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"8/4Q3/8/8/8/8/k1K5/8 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"8/8/8/1Q6/8/3K4/8/3k4 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"k1K5/8/8/8/8/1Q6/8/8 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"8/8/8/8/2Q5/7K/8/7k w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"8/8/8/8/6Q1/8/7k/5K2 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"k7/2K5/8/8/2Q5/8/8/8 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"8/8/8/Q7/8/6K1/8/6k1 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"8/8/5K1k/8/8/4R3/8/8 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"8/8/8/8/5K1k/8/3R4/8 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"8/8/k1K5/8/1R6/8/8/8 w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+ {fen:"8/8/8/5R2/8/7K/8/7k w - - 0 1", diff:"Easy", type:"mate", goal:"Mate in 1", sol:null, desc:"Checkmate in one."},
+
+ {fen:"4K3/7k/8/8/8/8/8/6Q1 w - - 0 1", diff:"Medium", type:"move", goal:"Mate in 2 (find the key move)", sol:["e8f7"], desc:"Forces checkmate in two."},
+ {fen:"6k1/8/8/5K2/5Q2/8/8/8 w - - 0 1", diff:"Medium", type:"move", goal:"Mate in 2 (find the key move)", sol:["f5g6"], desc:"Forces checkmate in two."},
+ {fen:"k7/3Q4/8/2K5/8/8/8/8 w - - 0 1", diff:"Medium", type:"move", goal:"Mate in 2 (find the key move)", sol:["c5b6","c5c6"], desc:"Forces checkmate in two."},
+ {fen:"5k2/8/8/7K/4Q3/8/8/8 w - - 0 1", diff:"Medium", type:"move", goal:"Mate in 2 (find the key move)", sol:["h5g6"], desc:"Forces checkmate in two."},
+ {fen:"8/8/1Q6/8/3K4/8/8/k7 w - - 0 1", diff:"Medium", type:"move", goal:"Mate in 2 (find the key move)", sol:["d4c3"], desc:"Forces checkmate in two."},
+ {fen:"4Q3/8/8/8/8/7K/8/5k2 w - - 0 1", diff:"Medium", type:"move", goal:"Mate in 2 (find the key move)", sol:["h3g3"], desc:"Forces checkmate in two."},
+
+ {fen:"K7/6N1/7q/8/7k/8/8/8 w - - 0 1", diff:"Hard", type:"move", goal:"Win the queen with a fork", sol:["g7f5"], desc:"Knight forks king and queen."},
+ {fen:"K7/5q2/8/8/4k3/5N2/8/8 w - - 0 1", diff:"Hard", type:"move", goal:"Win the queen with a fork", sol:["f3g5"], desc:"Knight forks king and queen."},
+ {fen:"7K/8/8/4N3/5q2/8/1k6/8 w - - 0 1", diff:"Hard", type:"move", goal:"Win the queen with a fork", sol:["e5d3"], desc:"Knight forks king and queen."},
+ {fen:"8/8/1k1q4/8/8/8/1N6/7K w - - 0 1", diff:"Hard", type:"move", goal:"Win the queen with a fork", sol:["b2c4"], desc:"Knight forks king and queen."},
+ {fen:"7K/4q3/8/8/1k3N2/8/8/8 w - - 0 1", diff:"Hard", type:"move", goal:"Win the queen with a fork", sol:["f4d5"], desc:"Knight forks king and queen."},
+ {fen:"K7/8/3q4/8/8/8/3N1k2/8 w - - 0 1", diff:"Hard", type:"move", goal:"Win the queen with a fork", sol:["d2e4"], desc:"Knight forks king and queen."}
+];
+
+</script>
+<script>
+var WIN=['Solved!','Nailed it!','Brilliant!','Checkmate champ!','Yes!','Too easy?'];
+var PZSTYLE='svg';
+function pzPiece(p){
+  if(!p) return '';
+  if(PZSTYLE==='silly' && typeof pieceSilly==='function') return pieceSilly(p);
+  if(PZSTYLE==='animal' && typeof pieceAnimal==='function') return pieceAnimal(p);
+  return pieceSVG(p);
+}
+function setPzStyle(v){ PZSTYLE=v; if(v==='silly' && typeof buildSillyArmies==='function') buildSillyArmies(); render(); }
+function drawKey(){
+  if(!document.getElementById('key')) return;
+  var types=['K','Q','R','B','N','P'],
+      names={K:'King',Q:'Queen',R:'Rook',B:'Bishop',N:'Knight',P:'Pawn'}, h='';
+  for(var i=0;i<types.length;i++){
+    h+="<span class='kitem'><span class='kpc'>"+pzPiece(types[i])+"</span>"+names[types[i]]+"</span>";
+  }
+  document.getElementById('key').innerHTML='<b>Key:</b> '+h;
+}
+var list=[], idx=0;
+var PZ={board:null,turn:W,castle:null,ep:null,sel:null,solved:false,hintSq:null,puz:null,solver:W};
+
+function $(id){return document.getElementById(id);}
+function setStatus(t){ $('status').innerHTML=t; }
+function banner(cls,txt){ var b=$('banner'); b.className='banner '+cls; b.innerHTML=txt; }
+function hideBanner(){ $('banner').className='banner hide'; }
+
+function buildList(){
+  var d=$('diff').value; list=[];
+  for(var i=0;i<PUZZLES.length;i++){ if(d==='All'||PUZZLES[i].diff===d) list.push(PUZZLES[i]); }
+  idx=0;
+}
+function applyFilter(){ buildList(); if(list.length) loadPuzzle(); else { $('boardwrap').innerHTML=''; hideBanner(); setStatus('No puzzles for that level.'); } }
+function shufflePuzzles(){ buildList(); for(var i=list.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=list[i];list[i]=list[j];list[j]=t;} if(list.length) loadPuzzle(); }
+function nextPuzzle(){ if(!list.length)return; idx=(idx+1)%list.length; loadPuzzle(); }
+
+function loadPuzzle(){
+  var p=list[idx]; PZ.puz=p;
+  var st=parseFEN(p.fen);
+  PZ.board=st.board; PZ.turn=st.turn; PZ.castle=st.castle; PZ.ep=st.ep;
+  PZ.solver=st.turn;            /* lock board orientation for the whole puzzle */
+  PZ.sel=null; PZ.solved=false; PZ.hintSq=null;
+  hideBanner();
+  setStatus((PZ.turn===W?'White':'Black')+' to move — '+p.goal);
+  $('meta').innerHTML='Puzzle '+(idx+1)+' of '+list.length+' &nbsp; ('+p.diff+')';
+  render();
+}
+function flip(){ return PZ.solver===B; }   /* fixed — does NOT change when the move is played */
+
+function drawBoard(){
+  var fl=flip(), dim=' style="width:'+CELL+'px;height:'+CELL+'px"';
+  var legal = PZ.sel ? movesFrom(PZ.sel.r,PZ.sel.c) : [];
+  var html='<table class="board">';
+  for(var dr=0;dr<8;dr++){ html+='<tr>';
+    for(var dc=0;dc<8;dc++){
+      var r=fl?7-dr:dr, c=fl?7-dc:dc;
+      var cls=((r+c)%2===0)?'lt':'dk';
+      if(PZ.sel&&PZ.sel.r===r&&PZ.sel.c===c)cls+=' sel';
+      else if(PZ.hintSq&&PZ.hintSq.r===r&&PZ.hintSq.c===c)cls+=' sel';
+      else{for(var k=0;k<legal.length;k++){if(legal[k].tr===r&&legal[k].tc===c){cls+=' dot';break;}}}
+      var labels='';
+      if(dc===0) labels+='<span class="coord rank">'+(8-r)+'</span>';
+      if(dr===7) labels+='<span class="coord file">'+String.fromCharCode(97+c)+'</span>';
+      html+='<td class="'+cls+'"'+dim+' onclick="ptap('+r+','+c+')">'+labels+pzPiece(PZ.board[r][c])+'</td>';
+    }
+    html+='</tr>';
+  }
+  html+='</table>';
+  $('boardwrap').innerHTML=html;
+}
+function render(){ drawBoard(); drawKey(); }
+/* size locked; only re-compute on a real width change (rotation) */
+var _lastW=-1;
+function layout(){ CELL=cellSize(); _lastW=(window.innerWidth||0); if(PZ.board) render(); }
+window.onresize=function(){ if((window.innerWidth||0)!==_lastW) layout(); };
+function movesFrom(r,c){
+  var all=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep),out=[];
+  for(var i=0;i<all.length;i++){if(all[i].fr===r&&all[i].fc===c)out.push(all[i]);}
+  return out;
+}
+function ptap(r,c){
+  if(PZ.solved)return;
+  var p=PZ.board[r][c];
+  if(PZ.sel){
+    var ms=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep),chosen=null;
+    for(var i=0;i<ms.length;i++){var m=ms[i];
+      if(m.fr===PZ.sel.r&&m.fc===PZ.sel.c&&m.tr===r&&m.tc===c){chosen=m;break;}}
+    if(chosen){ tryMove(chosen); return; }
+    if(p&&colorOf(p)===PZ.turn){ PZ.sel={r:r,c:c}; PZ.hintSq=null; render(); return; }
+    PZ.sel=null; render(); return;
+  }
+  if(p&&colorOf(p)===PZ.turn){ PZ.sel={r:r,c:c}; PZ.hintSq=null; render(); }
+}
+function tryMove(m){
+  var p=PZ.puz, mvStr=sq(m.fr,m.fc)+sq(m.tr,m.tc);
+  var st=applyMove(PZ.board,m,PZ.castle,PZ.turn), opp=other(PZ.turn);
+  var isMate = inCheck(st.board,opp) && legalMoves(st.board,opp,st.castle,st.ep).length===0;
+  var ok;
+  if(p.type==='mate') ok = isMate;
+  else { ok=false; for(var i=0;i<p.sol.length;i++){ if(p.sol[i]===mvStr) ok=true; } }
+  if(ok){
+    PZ.board=st.board; PZ.castle=st.castle; PZ.ep=st.ep;  /* keep PZ.turn for orientation lock */
+    PZ.sel=null; PZ.solved=true; render();
+    banner('ok', WIN[Math.floor(Math.random()*WIN.length)]);
+    setStatus(p.desc||'');
+  } else {
+    PZ.sel=null; render();
+    banner('no','Not quite - try again');
+    setStatus((PZ.solver===W?'White':'Black')+' to move — '+p.goal);
+  }
+}
+function hint(){
+  if(PZ.solved)return;
+  var p=PZ.puz, hs=null;
+  if(p.type==='mate'){
+    var ms=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep);
+    for(var i=0;i<ms.length;i++){var st=applyMove(PZ.board,ms[i],PZ.castle,PZ.turn),opp=other(PZ.turn);
+      if(inCheck(st.board,opp)&&legalMoves(st.board,opp,st.castle,st.ep).length===0){hs={r:ms[i].fr,c:ms[i].fc};break;}}
+  } else if(p.sol&&p.sol.length){ hs=parseSquare(p.sol[0].substring(0,2)); }
+  PZ.hintSq=hs; PZ.sel=null; render();
+  setStatus('Hint: move the highlighted piece.');
+}
+function resetPuzzle(){ loadPuzzle(); }
+
+buildList();
+if(list.length) loadPuzzle(); else setStatus('No puzzles loaded.');
+layout();
+if(window.addEventListener) window.addEventListener('load',layout);
+
+</script>
+</body>
+</html>
