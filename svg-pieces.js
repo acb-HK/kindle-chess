@@ -1,6 +1,9 @@
 /* Board cell size in REAL pixels (Kindle Paperwhite browser has no vw units).
    Computed from screen width so the board fills it; clamped for desktop. */
 var CELL=60;
+/* px kept free BELOW the board so the New Game/Undo buttons + move list show
+   without scrolling. Larger = smaller board. */
+var RESERVE_BELOW=130;
 function cellSize(){
   var w = window.innerWidth || document.documentElement.clientWidth || 320;
   var s = Math.floor((w-8)/8);

@@ -52,6 +52,7 @@ function renderPiece(p){
   if(!p) return '';
   var html;
   if(G.style==='emoji' && typeof pieceEmoji==='function') html=pieceEmoji(p);
+  else if(G.style==='animal' && typeof pieceAnimal==='function') html=pieceAnimal(p);
   else if(G.style==='sym' && typeof pieceSym==='function') html=pieceSym(p);
   else html=pieceSVG(p);
   if(G.mode==='2p' && colorOf(p)===B) html="<span class='flip180'>"+html+"</span>";
@@ -83,10 +84,10 @@ function render(){ CELL=cellSize(); drawBoard(); fitBoard(); }
 function fitBoard(){
   var bw=$('boardwrap'); if(!bw)return;
   var top=0, el=bw; while(el){ top+=el.offsetTop; el=el.offsetParent; }
-  var availH=(window.innerHeight||0)-top-8;
+  var availH=(window.innerHeight||0)-top-RESERVE_BELOW;
   if(availH<=0)return;
   var byH=Math.floor(availH/8);
-  if(byH<32)byH=32;
+  if(byH<28)byH=28;
   if(byH<CELL){ CELL=byH; drawBoard(); }
 }
 if(typeof window!=='undefined') window.onresize=function(){ if(G.board) render(); };

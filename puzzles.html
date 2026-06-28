@@ -97,10 +97,10 @@ function render(){ CELL=cellSize(); drawBoard(); fitBoard(); }
 function fitBoard(){
   var bw=$('boardwrap'); if(!bw)return;
   var top=0, el=bw; while(el){ top+=el.offsetTop; el=el.offsetParent; }
-  var availH=(window.innerHeight||0)-top-8;
+  var availH=(window.innerHeight||0)-top-RESERVE_BELOW;
   if(availH<=0)return;
   var byH=Math.floor(availH/8);
-  if(byH<32)byH=32;
+  if(byH<28)byH=28;
   if(byH<CELL){ CELL=byH; drawBoard(); }
 }
 window.onresize=function(){ if(PZ.board) render(); };
