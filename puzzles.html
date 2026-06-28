@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Kindle Chess — Puzzles</title>
 <link rel="stylesheet" href="style.css">
-<link rel="manifest" href="manifest.webmanifest">
 </head>
 <body>
 <h1>Chess Puzzles</h1>
@@ -178,7 +177,12 @@ buildList();
 if(list.length) loadPuzzle(); else setStatus('No puzzles loaded.');
 layout();
 if(window.addEventListener) window.addEventListener('load',layout);
-if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
+/* No service worker (it could wedge old Kindle browsers). Kill any old one. */
+try{ if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){
+  navigator.serviceWorker.getRegistrations().then(function(rs){for(var i=0;i<rs.length;i++)rs[i].unregister();});
+}
+if(window.caches&&caches.keys){ caches.keys().then(function(ks){for(var i=0;i<ks.length;i++)caches.delete(ks[i]);}); }
+}catch(e){}
 </script>
 </body>
 </html>

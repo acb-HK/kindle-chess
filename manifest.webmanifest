@@ -1,9 +1,0 @@
-{
-  "name": "Kindle Chess",
-  "short_name": "Chess",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
-  "description": "Offline chess vs computer, 2-player, and puzzles. Built for e-ink."
-}
