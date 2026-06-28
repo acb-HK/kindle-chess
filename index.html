@@ -68,6 +68,8 @@
 <script src="ui.js"></script>
 <script>
 newGame();
+layout();
+if(window.addEventListener) window.addEventListener('load',layout);
 if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
 </script>
 </body>

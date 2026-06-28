@@ -120,8 +120,11 @@ function drawBoard(){
   html+='</table>';
   $('boardwrap').innerHTML=html;
 }
-function render(){ CELL=cellSize(); drawBoard(); drawKey(); }
-window.onresize=function(){ if(PZ.board) render(); };
+function render(){ drawBoard(); drawKey(); }
+/* size locked; only re-compute on a real width change (rotation) */
+var _lastW=-1;
+function layout(){ CELL=cellSize(); _lastW=(window.innerWidth||0); if(PZ.board) render(); }
+window.onresize=function(){ if((window.innerWidth||0)!==_lastW) layout(); };
 function movesFrom(r,c){
   var all=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep),out=[];
   for(var i=0;i<all.length;i++){if(all[i].fr===r&&all[i].fc===c)out.push(all[i]);}
@@ -173,6 +176,8 @@ function resetPuzzle(){ loadPuzzle(); }
 
 buildList();
 if(list.length) loadPuzzle(); else setStatus('No puzzles loaded.');
+layout();
+if(window.addEventListener) window.addEventListener('load',layout);
 if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
 </script>
 </body>

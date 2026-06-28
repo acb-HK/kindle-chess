@@ -93,8 +93,15 @@ function drawBoard(){
   html+='</table>';
   $('boardwrap').innerHTML=html;
 }
-function render(){ CELL=cellSize(); drawBoard(); drawKey(); }
-if(typeof window!=='undefined') window.onresize=function(){ if(G.board) render(); };
+function render(){ drawBoard(); drawKey(); }
+/* size is locked: computed once by layout(), and only re-computed when the
+   screen WIDTH changes (a real rotation) — not when the Kindle toolbar hides
+   and changes the height, which used to make the board grow after a tap. */
+var _lastW=-1;
+function layout(){ CELL=cellSize(); _lastW=(window.innerWidth||0); if(G.board) render(); }
+if(typeof window!=='undefined') window.onresize=function(){
+  if((window.innerWidth||0)!==_lastW) layout();
+};
 function movesFrom(r,c){
   var all=legalMoves(G.board,G.turn,G.castle,G.ep),out=[];
   for(var i=0;i<all.length;i++){if(all[i].fr===r&&all[i].fc===c)out.push(all[i]);}
