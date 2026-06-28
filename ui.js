@@ -25,13 +25,14 @@ function clearQuip(){ showQuip(''); }
 function setStyle(v){
   G.style=v;
   if(v==='emoji' && typeof buildArmies==='function') buildArmies();
-  if(v!=='emoji') clearQuip();
+  if(v==='silly' && typeof buildSillyArmies==='function') buildSillyArmies();
   render();
 }
 
 function newGame(){
   readControls();
   if(G.style==='emoji' && typeof buildArmies==='function') buildArmies();
+  if(G.style==='silly' && typeof buildSillyArmies==='function') buildSillyArmies();
   G.board=startPos(); G.turn=W; G.sel=null;
   G.castle={wk:true,wq:true,bk:true,bq:true}; G.ep=null;
   G.hist=[]; G.sanW=[]; G.sanB=[]; G.over=false; G.thinking=false;
@@ -51,7 +52,8 @@ function humanToMove(){
 function renderPiece(p){
   if(!p) return '';
   var html;
-  if(G.style==='emoji' && typeof pieceEmoji==='function') html=pieceEmoji(p);
+  if(G.style==='silly' && typeof pieceSilly==='function') html=pieceSilly(p);
+  else if(G.style==='emoji' && typeof pieceEmoji==='function') html=pieceEmoji(p);
   else if(G.style==='animal' && typeof pieceAnimal==='function') html=pieceAnimal(p);
   else if(G.style==='sym' && typeof pieceSym==='function') html=pieceSym(p);
   else html=pieceSVG(p);
