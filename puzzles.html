@@ -72,8 +72,7 @@ function loadPuzzle(){
 }
 function flip(){ return PZ.solver===B; }   /* fixed — does NOT change when the move is played */
 
-function render(){
-  CELL=cellSize();
+function drawBoard(){
   var fl=flip(), dim=' style="width:'+CELL+'px;height:'+CELL+'px"';
   var legal = PZ.sel ? movesFrom(PZ.sel.r,PZ.sel.c) : [];
   var html='<table class="board">';
@@ -93,6 +92,16 @@ function render(){
   }
   html+='</table>';
   $('boardwrap').innerHTML=html;
+}
+function render(){ CELL=cellSize(); drawBoard(); fitBoard(); }
+function fitBoard(){
+  var bw=$('boardwrap'); if(!bw)return;
+  var top=0, el=bw; while(el){ top+=el.offsetTop; el=el.offsetParent; }
+  var availH=(window.innerHeight||0)-top-8;
+  if(availH<=0)return;
+  var byH=Math.floor(availH/8);
+  if(byH<32)byH=32;
+  if(byH<CELL){ CELL=byH; drawBoard(); }
 }
 window.onresize=function(){ if(PZ.board) render(); };
 function movesFrom(r,c){

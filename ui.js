@@ -57,8 +57,7 @@ function renderPiece(p){
   if(G.mode==='2p' && colorOf(p)===B) html="<span class='flip180'>"+html+"</span>";
   return html;
 }
-function render(){
-  CELL=cellSize();
+function drawBoard(){
   var flip=viewFlipped(), dim=' style="width:'+CELL+'px;height:'+CELL+'px"';
   var legal = G.sel ? movesFrom(G.sel.r,G.sel.c) : [];
   var html='<table class="board">';
@@ -77,6 +76,18 @@ function render(){
   }
   html+='</table>';
   $('boardwrap').innerHTML=html;
+}
+function render(){ CELL=cellSize(); drawBoard(); fitBoard(); }
+/* shrink the cell so the whole board fits the screen height (accounts for the
+   controls/header above the board). Only shrinks, never grows past width-fit. */
+function fitBoard(){
+  var bw=$('boardwrap'); if(!bw)return;
+  var top=0, el=bw; while(el){ top+=el.offsetTop; el=el.offsetParent; }
+  var availH=(window.innerHeight||0)-top-8;
+  if(availH<=0)return;
+  var byH=Math.floor(availH/8);
+  if(byH<32)byH=32;
+  if(byH<CELL){ CELL=byH; drawBoard(); }
 }
 if(typeof window!=='undefined') window.onresize=function(){ if(G.board) render(); };
 function movesFrom(r,c){
