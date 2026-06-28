@@ -58,7 +58,8 @@ function renderPiece(p){
   return html;
 }
 function render(){
-  var flip=viewFlipped();
+  CELL=cellSize();
+  var flip=viewFlipped(), dim=' style="width:'+CELL+'px;height:'+CELL+'px"';
   var legal = G.sel ? movesFrom(G.sel.r,G.sel.c) : [];
   var html='<table class="board">';
   for(var dr=0;dr<8;dr++){ html+='<tr>';
@@ -70,13 +71,14 @@ function render(){
       var labels='';
       if(dc===0) labels+='<span class="coord rank">'+(8-r)+'</span>';
       if(dr===7) labels+='<span class="coord file">'+String.fromCharCode(97+c)+'</span>';
-      html+='<td class="'+cls+'" onclick="tap('+r+','+c+')">'+labels+renderPiece(G.board[r][c])+'</td>';
+      html+='<td class="'+cls+'"'+dim+' onclick="tap('+r+','+c+')">'+labels+renderPiece(G.board[r][c])+'</td>';
     }
     html+='</tr>';
   }
   html+='</table>';
   $('boardwrap').innerHTML=html;
 }
+if(typeof window!=='undefined') window.onresize=function(){ if(G.board) render(); };
 function movesFrom(r,c){
   var all=legalMoves(G.board,G.turn,G.castle,G.ep),out=[];
   for(var i=0;i<all.length;i++){if(all[i].fr===r&&all[i].fc===c)out.push(all[i]);}

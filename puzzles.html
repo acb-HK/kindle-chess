@@ -73,7 +73,8 @@ function loadPuzzle(){
 function flip(){ return PZ.solver===B; }   /* fixed — does NOT change when the move is played */
 
 function render(){
-  var fl=flip();
+  CELL=cellSize();
+  var fl=flip(), dim=' style="width:'+CELL+'px;height:'+CELL+'px"';
   var legal = PZ.sel ? movesFrom(PZ.sel.r,PZ.sel.c) : [];
   var html='<table class="board">';
   for(var dr=0;dr<8;dr++){ html+='<tr>';
@@ -86,13 +87,14 @@ function render(){
       var labels='';
       if(dc===0) labels+='<span class="coord rank">'+(8-r)+'</span>';
       if(dr===7) labels+='<span class="coord file">'+String.fromCharCode(97+c)+'</span>';
-      html+='<td class="'+cls+'" onclick="ptap('+r+','+c+')">'+labels+pieceSVG(PZ.board[r][c])+'</td>';
+      html+='<td class="'+cls+'"'+dim+' onclick="ptap('+r+','+c+')">'+labels+pieceSVG(PZ.board[r][c])+'</td>';
     }
     html+='</tr>';
   }
   html+='</table>';
   $('boardwrap').innerHTML=html;
 }
+window.onresize=function(){ if(PZ.board) render(); };
 function movesFrom(r,c){
   var all=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep),out=[];
   for(var i=0;i<all.length;i++){if(all[i].fr===r&&all[i].fc===c)out.push(all[i]);}

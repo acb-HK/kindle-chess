@@ -1,59 +1,56 @@
-/* Kindle Chess — shared styles. Board sized in vw to fill the screen. */
+/* Kindle Chess — styles. NO viewport (vw/vh) units: the Kindle Paperwhite
+   browser does not support them. Board cells are sized in real px by JS
+   (see cellSize() in svg-pieces.js). Fonts use fixed px. */
 *{box-sizing:border-box;}
 body{font-family:Georgia,'Times New Roman',serif;margin:0;padding:4px 4px 24px;
      background:#fff;color:#000;-webkit-text-size-adjust:100%;}
-h1{font-size:5vw;margin:4px 0;text-align:center;}
-nav{text-align:center;font-size:3.6vw;margin:2px 0 6px;border-bottom:1px solid #000;padding-bottom:5px;}
-nav a{color:#000;text-decoration:none;margin:0 6px;padding:2px 4px;}
+h1{font-size:22px;margin:4px 0;text-align:center;}
+nav{text-align:center;font-size:16px;margin:2px 0 6px;border-bottom:1px solid #000;padding-bottom:5px;}
+nav a{color:#000;text-decoration:none;margin:0 8px;padding:2px 4px;}
 nav a.on{font-weight:bold;text-decoration:underline;}
-#status{text-align:center;font-size:4.2vw;margin:6px 0;min-height:5vw;font-weight:bold;}
+#status{text-align:center;font-size:18px;margin:6px 0;min-height:20px;font-weight:bold;}
 
-/* board fills the screen width: 8 cells of 12vw = 96vw */
-table.board{border-collapse:collapse;margin:0 auto;border:0.6vw solid #000;}
-table.board td{width:12vw;height:12vw;max-width:84px;max-height:84px;
-     padding:0;border:1px solid #000;text-align:center;vertical-align:middle;
-     position:relative;font-size:8.4vw;line-height:1;}
+/* board — cells get inline px width/height from JS */
+table.board{border-collapse:collapse;margin:0 auto;border:3px solid #000;}
+table.board td{padding:0;border:1px solid #000;text-align:center;vertical-align:middle;position:relative;}
 table.board td svg{display:block;margin:auto;width:90%;height:90%;}
 .lt{background:#f4f4f4;}
 .dk{background:#9b9b9b;}
-.sel{box-shadow:inset 0 0 0 0.9vw #000;}
-.dot:after{content:"";position:absolute;left:50%;top:50%;width:4vw;height:4vw;
-     margin:-2vw 0 0 -2vw;border-radius:50%;background:rgba(0,0,0,0.45);}
-.coord{font-size:2.6vw;color:#333;position:absolute;pointer-events:none;}
-.coord.file{right:2px;bottom:0;}
-.coord.rank{left:2px;top:0;}
+.sel{box-shadow:inset 0 0 0 4px #000;outline:3px solid #000;outline-offset:-4px;}
+.dot:after{content:"";position:absolute;left:50%;top:50%;width:14px;height:14px;
+     margin:-7px 0 0 -7px;border-radius:50%;background:#555;}
+.coord{font-size:11px;color:#333;position:absolute;pointer-events:none;line-height:1;}
+.coord.file{right:2px;bottom:1px;}
+.coord.rank{left:2px;top:1px;}
 
 .ctl{text-align:center;margin:8px 0;}
-.ctl label{font-size:3.6vw;margin:0 4px;}
-button,select{font-size:4vw;border:1px solid #000;background:#eee;color:#000;
+.ctl label{font-size:15px;margin:0 5px;display:inline-block;}
+button,select{font-size:16px;border:1px solid #000;background:#eee;color:#000;
      padding:6px 10px;margin:3px;border-radius:4px;font-family:inherit;}
 button:active{background:#ccc;}
 
-#moves{max-width:96vw;margin:8px auto;font-size:3.6vw;line-height:1.5;
-     border:1px solid #000;padding:6px;min-height:6vw;word-wrap:break-word;}
-#moves b{display:inline-block;min-width:7vw;}
-.note{font-size:3vw;color:#333;text-align:center;margin:6px auto;max-width:96vw;}
+#moves{max-width:96%;margin:8px auto;font-size:15px;line-height:1.5;
+     border:1px solid #000;padding:6px;min-height:24px;word-wrap:break-word;}
+#moves b{display:inline-block;min-width:28px;}
+.note{font-size:13px;color:#333;text-align:center;margin:6px auto;max-width:96%;line-height:1.4;}
 
-/* emoji + symbol pieces */
-.badge{display:inline-block;width:9.6vw;height:9.6vw;max-width:70px;max-height:70px;
-   line-height:9.6vw;border-radius:50%;border:0.4vw solid #000;text-align:center;
-   font-size:6.2vw;overflow:hidden;}
+/* emoji + symbol pieces (badge dims/font set inline in px by the renderer) */
+.badge{display:inline-block;border-radius:50%;border:2px solid #000;text-align:center;overflow:hidden;}
 .badge.wb{background:#fff;}
 .badge.bb{background:#000;}
-.sym{font-size:9.4vw;line-height:1;}
-table.board td .badge, table.board td .sym{vertical-align:middle;}
+.sym{line-height:1;}
 
 /* 2-player: rotate Black's pieces so the opponent across the table sees them upright */
 .flip180{display:inline-block;transform:rotate(180deg);-webkit-transform:rotate(180deg);}
 
 /* random kid quip bubble (emoji mode) */
-#quip{text-align:center;min-height:6vw;margin:2px 0;}
+#quip{text-align:center;min-height:24px;margin:2px 0;}
 #quip .bubble{display:inline-block;border:1px solid #000;border-radius:14px;
-   padding:4px 12px;font-size:4vw;background:#fafafa;}
+     padding:4px 12px;font-size:16px;background:#fafafa;}
 
 /* puzzle solved / fail banner */
-.banner{text-align:center;font-size:6vw;font-weight:bold;margin:6px auto;padding:8px;
-   border:0.6vw solid #000;border-radius:8px;max-width:96vw;}
+.banner{text-align:center;font-size:22px;font-weight:bold;margin:6px auto;padding:8px;
+     border:3px solid #000;border-radius:8px;max-width:96%;}
 .banner.ok{background:#000;color:#fff;}
 .banner.no{background:#fff;color:#000;}
 .banner.hide{display:none;}

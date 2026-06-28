@@ -1,3 +1,14 @@
+/* Board cell size in REAL pixels (Kindle Paperwhite browser has no vw units).
+   Computed from screen width so the board fills it; clamped for desktop. */
+var CELL=60;
+function cellSize(){
+  var w = window.innerWidth || document.documentElement.clientWidth || 320;
+  var s = Math.floor((w-8)/8);
+  if(s<32) s=32;
+  if(s>110) s=110;
+  return s;
+}
+
 /* Inline SVG chess pieces — crisp on e-ink, no fonts/CDN. White=outlined, Black=solid. */
 function pieceSVG(p){
   if(!p) return '';

@@ -24,12 +24,15 @@ function pieceEmoji(p){
   if(!ARMY_W) buildArmies();
   var white=(p===p.toUpperCase()), t=p.toUpperCase();
   var e = white?ARMY_W[t]:ARMY_B[t];
-  return "<span class='badge "+(white?'wb':'bb')+"'>"+e+"</span>";
+  var d=Math.round((CELL||60)*0.9), fs=Math.round((CELL||60)*0.56);
+  var st="width:"+d+"px;height:"+d+"px;line-height:"+d+"px;font-size:"+fs+"px";
+  return "<span class='badge "+(white?'wb':'bb')+"' style='"+st+"'>"+e+"</span>";
 }
 function pieceSym(p){
   if(!p) return '';
   var white=(p===p.toUpperCase()), t=p.toUpperCase();
-  return "<span class='sym'>"+(white?SYMW[t]:SYMB[t])+"</span>";
+  var fs=Math.round((CELL||60)*0.82);
+  return "<span class='sym' style='font-size:"+fs+"px'>"+(white?SYMW[t]:SYMB[t])+"</span>";
 }
 
 /* kid-friendly quips, shown at random (~1 in 3) when emoji style is on */
