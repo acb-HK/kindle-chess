@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Kindle Chess — Emoji</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  .badge{display:inline-block;width:9.4vw;height:9.4vw;max-width:66px;max-height:66px;
+     line-height:9.4vw;border-radius:50%;border:0.4vw solid #000;text-align:center;
+     font-size:6vw;overflow:hidden;}
+  .badge.wb{background:#fff;}
+  .badge.bb{background:#000;}
+  .sym{font-size:9vw;line-height:1;}
+</style>
+</head>
+<body>
+<h1>Chess — Emoji</h1>
+<nav>
+  <a href="index.html">Pieces</a>
+  <a href="emoji.html" class="on">Emoji</a>
+  <a href="puzzles.html">Puzzles</a>
+</nav>
+
+<div class="ctl">
+  <label>Mode
+    <select id="mode" onchange="onControlChange()">
+      <option value="cpu" selected>vs Computer</option>
+      <option value="2p">2 Players</option>
+    </select>
+  </label>
+  <label>You
+    <select id="side" onchange="onControlChange()">
+      <option value="w" selected>White</option>
+      <option value="b">Black</option>
+    </select>
+  </label>
+  <label>Level
+    <select id="level" onchange="onControlChange()">
+      <option value="0">Beginner</option>
+      <option value="1">Easy</option>
+      <option value="2" selected>Medium</option>
+      <option value="3">Hard</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="flip" checked oninput="G.flip2p=this.checked;render();"> flip each turn (2P)</label>
+  <label><input type="checkbox" id="symtoggle" oninput="useSymbols=this.checked;render();drawKey();"> chess symbols (better on Kindle)</label>
+</div>
+
+<div id="status"></div>
+<div id="boardwrap"></div>
+
+<div class="ctl">
+  <button onclick="newGame()">New Game</button>
+  <button onclick="undo()">Undo</button>
+</div>
+
+<div class="key" id="key"></div>
+<div id="moves"></div>
+<div class="note">White = light badge, Black = dark badge. If pieces show as boxes on your Kindle,
+  tick "chess symbols" above.</div>
+
+<script src="engine.js"></script>
+<script>
+var useSymbols=false;
+var EMO={K:'🤴',Q:'👸',R:'🏰',B:'🐘',N:'🐎',P:'🪖'};
+var SYMW={K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙'};
+var SYMB={K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟'};
+var NAME={K:'King',Q:'Queen',R:'Rook',B:'Bishop',N:'Knight',P:'Pawn'};
+
+function pieceEmoji(p){
+  if(!p) return '';
+  var white=(p===p.toUpperCase()), t=p.toUpperCase();
+  if(useSymbols){
+    var g=white?SYMW[t]:SYMB[t];
+    return "<span class='sym'>"+g+"</span>";
+  }
+  return "<span class='badge "+(white?'wb':'bb')+"'>"+EMO[t]+"</span>";
+}
+window.PIECE_RENDER = pieceEmoji;
+
+function drawKey(){
+  var order=['K','Q','R','B','N','P'], html='', i;
+  for(i=0;i<order.length;i++){var t=order[i];
+    var pc = useSymbols ? (SYMW[t]+SYMB[t]) : EMO[t];
+    html+="<span><span class='pc'>"+pc+"</span> "+NAME[t]+"</span>";
+  }
+  document.getElementById('key').innerHTML='<b>Key:</b> '+html;
+}
+</script>
+<script src="ui.js"></script>
+<script>
+drawKey();
+newGame();
+if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
+</script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Kindle Chess — Puzzles</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
+<h1>Chess Puzzles</h1>
+<nav>
+  <a href="index.html">Pieces</a>
+  <a href="emoji.html">Emoji</a>
+  <a href="puzzles.html" class="on">Puzzles</a>
+</nav>
+
+<div class="ctl">
+  <label>Difficulty
+    <select id="diff" onchange="applyFilter()">
+      <option value="All" selected>All</option>
+      <option value="Easy">Easy</option>
+      <option value="Medium">Medium</option>
+      <option value="Hard">Hard</option>
+    </select>
+  </label>
+  <button onclick="shufflePuzzles()">Shuffle</button>
+</div>
+
+<div id="status"></div>
+<div id="boardwrap"></div>
+
+<div class="ctl">
+  <button onclick="hint()">Hint</button>
+  <button onclick="resetPuzzle()">Retry</button>
+  <button onclick="nextPuzzle()">Next &rarr;</button>
+</div>
+<div class="note" id="meta"></div>
+
+<script src="engine.js"></script>
+<script src="svg-pieces.js"></script>
+<script src="puzzles-data.js"></script>
+<script>
+var list=[], idx=0;
+var PZ={board:null,turn:W,castle:null,ep:null,sel:null,solved:false,hintSq:null,puz:null};
+
+function buildList(){
+  var d=document.getElementById('diff').value;
+  list=[]; for(var i=0;i<PUZZLES.length;i++){ if(d==='All'||PUZZLES[i].diff===d) list.push(PUZZLES[i]); }
+  idx=0;
+}
+function applyFilter(){ buildList(); if(list.length) loadPuzzle(); else { document.getElementById('boardwrap').innerHTML=''; setStatus('No puzzles for that level.'); } }
+function shufflePuzzles(){ buildList(); for(var i=list.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=list[i];list[i]=list[j];list[j]=t;} if(list.length) loadPuzzle(); }
+function nextPuzzle(){ if(!list.length)return; idx=(idx+1)%list.length; loadPuzzle(); }
+function setStatus(t){ document.getElementById('status').innerHTML=t; }
+
+function loadPuzzle(){
+  var p=list[idx]; PZ.puz=p;
+  var st=parseFEN(p.fen);
+  PZ.board=st.board; PZ.turn=st.turn; PZ.castle=st.castle; PZ.ep=st.ep;
+  PZ.sel=null; PZ.solved=false; PZ.hintSq=null;
+  setStatus((PZ.turn===W?'White':'Black')+' to move — '+p.goal);
+  document.getElementById('meta').innerHTML='Puzzle '+(idx+1)+' of '+list.length+' &nbsp; ('+p.diff+')';
+  render();
+}
+function flip(){ return PZ.turn===B; } /* view from side to move */
+
+function render(){
+  var fl=flip();
+  var legal = PZ.sel ? movesFrom(PZ.sel.r,PZ.sel.c) : [];
+  var html='<table class="board">';
+  for(var dr=0;dr<8;dr++){ html+='<tr>';
+    for(var dc=0;dc<8;dc++){
+      var r=fl?7-dr:dr, c=fl?7-dc:dc;
+      var cls=((r+c)%2===0)?'lt':'dk';
+      if(PZ.sel&&PZ.sel.r===r&&PZ.sel.c===c)cls+=' sel';
+      else if(PZ.hintSq&&PZ.hintSq.r===r&&PZ.hintSq.c===c)cls+=' sel';
+      else{for(var k=0;k<legal.length;k++){if(legal[k].tr===r&&legal[k].tc===c){cls+=' dot';break;}}}
+      var labels='';
+      if(dc===0) labels+='<span class="coord rank">'+(8-r)+'</span>';
+      if(dr===7) labels+='<span class="coord file">'+String.fromCharCode(97+c)+'</span>';
+      html+='<td class="'+cls+'" onclick="ptap('+r+','+c+')">'+labels+pieceSVG(PZ.board[r][c])+'</td>';
+    }
+    html+='</tr>';
+  }
+  html+='</table>';
+  document.getElementById('boardwrap').innerHTML=html;
+}
+function movesFrom(r,c){
+  var all=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep),out=[];
+  for(var i=0;i<all.length;i++){if(all[i].fr===r&&all[i].fc===c)out.push(all[i]);}
+  return out;
+}
+function ptap(r,c){
+  if(PZ.solved)return;
+  var p=PZ.board[r][c];
+  if(PZ.sel){
+    var ms=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep),chosen=null;
+    for(var i=0;i<ms.length;i++){var m=ms[i];
+      if(m.fr===PZ.sel.r&&m.fc===PZ.sel.c&&m.tr===r&&m.tc===c){chosen=m;break;}}
+    if(chosen){ tryMove(chosen); return; }
+    if(p&&colorOf(p)===PZ.turn){ PZ.sel={r:r,c:c}; PZ.hintSq=null; render(); return; }
+    PZ.sel=null; render(); return;
+  }
+  if(p&&colorOf(p)===PZ.turn){ PZ.sel={r:r,c:c}; PZ.hintSq=null; render(); }
+}
+function tryMove(m){
+  var p=PZ.puz, mvStr=sq(m.fr,m.fc)+sq(m.tr,m.tc);
+  var st=applyMove(PZ.board,m,PZ.castle,PZ.turn), opp=other(PZ.turn);
+  var isMate = inCheck(st.board,opp) && legalMoves(st.board,opp,st.castle,st.ep).length===0;
+  var ok;
+  if(p.type==='mate') ok = isMate;
+  else { ok=false; for(var i=0;i<p.sol.length;i++){ if(p.sol[i]===mvStr) ok=true; } }
+  if(ok){
+    PZ.board=st.board; PZ.turn=opp; PZ.castle=st.castle; PZ.ep=st.ep;
+    PZ.sel=null; PZ.solved=true; render();
+    setStatus('✓ Solved! '+(p.desc||''));
+  } else {
+    PZ.sel=null; render();
+    setStatus('✗ Not it — try again. ('+(PZ.puz.turn===W?'White':'Black')+' to move, '+p.goal+')');
+  }
+}
+function hint(){
+  var p=PZ.puz, hs=null;
+  if(p.type==='mate'){
+    var ms=legalMoves(PZ.board,PZ.turn,PZ.castle,PZ.ep);
+    for(var i=0;i<ms.length;i++){var st=applyMove(PZ.board,ms[i],PZ.castle,PZ.turn),opp=other(PZ.turn);
+      if(inCheck(st.board,opp)&&legalMoves(st.board,opp,st.castle,st.ep).length===0){hs={r:ms[i].fr,c:ms[i].fc};break;}}
+  } else if(p.sol&&p.sol.length){ hs=parseSquare(p.sol[0].substring(0,2)); }
+  PZ.hintSq=hs; PZ.sel=null; render();
+  setStatus('Hint: move the highlighted piece.');
+}
+function resetPuzzle(){ loadPuzzle(); }
+
+buildList();
+if(list.length) loadPuzzle(); else setStatus('No puzzles loaded.');
+if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
+</script>
+</body>
+</html>
