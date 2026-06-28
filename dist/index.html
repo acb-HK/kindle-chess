@@ -661,6 +661,7 @@ var G = {
   hist:[], sanW:[], sanB:[], over:false, thinking:false,
   mode:'cpu', humanSide:'w', level:2, style:'svg'
 };
+var CPU_DELAY=2000;  /* pause (ms) before the computer moves, so it feels deliberate */
 
 function $(id){return document.getElementById(id);}
 function readControls(){
@@ -688,7 +689,7 @@ function newGame(){
   G.castle={wk:true,wq:true,bk:true,bq:true}; G.ep=null;
   G.hist=[]; G.sanW=[]; G.sanB=[]; G.over=false; G.thinking=false;
   clearQuip(); render(); renderMoves(); announceTurn();
-  if(G.mode==='cpu' && G.humanSide==='b'){ G.thinking=true; setStatus('Computer thinking…'); setTimeout(computerMove,60); }
+  if(G.mode==='cpu' && G.humanSide==='b'){ G.thinking=true; setStatus('Computer thinking…'); setTimeout(computerMove,CPU_DELAY); }
 }
 
 /* board view: flip only when playing Black vs computer. In 2-player the
@@ -784,7 +785,7 @@ function doMove(m){
   render(); renderMoves();
   if(checkEnd()) return;
   if(G.mode==='cpu' && G.turn!==G.humanSide){
-    G.thinking=true; setStatus('Computer thinking…'); setTimeout(computerMove,60);
+    G.thinking=true; setStatus('Computer thinking…'); setTimeout(computerMove,CPU_DELAY);
   } else announceTurn();
 }
 function computerMove(){
