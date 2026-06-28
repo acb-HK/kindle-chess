@@ -88,7 +88,9 @@ var SNAME={K:['Frog King','Crown King'],Q:['Crown Queen','Princess'],R:['Castle'
 
 var SILLY_W=null, SILLY_B=null;
 function rollSilly(){var m={},k=['K','Q','R','B','N','P'],i;for(i=0;i<k.length;i++){var t=k[i];m[t]=Math.floor(Math.random()*SP[t].length);}return m;}
-function buildSillyArmies(){ SILLY_W=rollSilly(); SILLY_B=rollSilly(); }
+/* both sides use the SAME variant per type (both prawns, both wizards...) so it
+   isn't confusing — White vs Black is shown by outline-vs-solid, not by shape. */
+function buildSillyArmies(){ var a=rollSilly(); SILLY_W=a; SILLY_B=a; }
 
 function pieceSilly(p){
   if(!p) return '';

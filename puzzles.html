@@ -23,6 +23,13 @@
       <option value="Hard">Hard</option>
     </select>
   </label>
+  <label>Pieces
+    <select id="pstyle" onchange="setPzStyle(this.value)">
+      <option value="svg" selected>Classic</option>
+      <option value="animal">Animals</option>
+      <option value="silly">Silly</option>
+    </select>
+  </label>
   <button onclick="shufflePuzzles()">Shuffle</button>
 </div>
 
@@ -39,9 +46,19 @@
 
 <script src="engine.js"></script>
 <script src="svg-pieces.js"></script>
+<script src="pieces-animals.js"></script>
+<script src="pieces-silly.js"></script>
 <script src="puzzles-data.js"></script>
 <script>
 var WIN=['Solved!','Nailed it!','Brilliant!','Checkmate champ!','Yes!','Too easy?'];
+var PZSTYLE='svg';
+function pzPiece(p){
+  if(!p) return '';
+  if(PZSTYLE==='silly' && typeof pieceSilly==='function') return pieceSilly(p);
+  if(PZSTYLE==='animal' && typeof pieceAnimal==='function') return pieceAnimal(p);
+  return pieceSVG(p);
+}
+function setPzStyle(v){ PZSTYLE=v; if(v==='silly' && typeof buildSillyArmies==='function') buildSillyArmies(); render(); }
 var list=[], idx=0;
 var PZ={board:null,turn:W,castle:null,ep:null,sel:null,solved:false,hintSq:null,puz:null,solver:W};
 
@@ -86,7 +103,7 @@ function drawBoard(){
       var labels='';
       if(dc===0) labels+='<span class="coord rank">'+(8-r)+'</span>';
       if(dr===7) labels+='<span class="coord file">'+String.fromCharCode(97+c)+'</span>';
-      html+='<td class="'+cls+'"'+dim+' onclick="ptap('+r+','+c+')">'+labels+pieceSVG(PZ.board[r][c])+'</td>';
+      html+='<td class="'+cls+'"'+dim+' onclick="ptap('+r+','+c+')">'+labels+pzPiece(PZ.board[r][c])+'</td>';
     }
     html+='</tr>';
   }
